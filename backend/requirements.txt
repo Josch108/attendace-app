@@ -1,0 +1,19 @@
+# API y Backend
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+python-dotenv>=1.0.1
+
+# Base de datos y ORM
+SQLAlchemy>=2.0.28
+psycopg2-binary>=2.9.9
+
+# Procesamiento de imágenes y vectores
+numpy>=1.26.0
+Pillow>=10.2.0
+opencv-python-headless>=4.9.0.80
+
+# Reconocimiento facial (opcional para scripts de enrollment directo)
+# onnxruntime>=1.17.0
+# insightface>=0.7.3
