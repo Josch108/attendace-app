@@ -23,8 +23,10 @@ import re
 import argparse
 from pathlib import Path
 
-# Add backend directory to sys.path
-BACKEND_DIR = Path(__file__).resolve().parent.parent / "backend"
+# Add project root and backend directory to sys.path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+BACKEND_DIR = PROJECT_ROOT / "backend"
+sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(BACKEND_DIR))
 
 from scripts.enroll_student import enroll_student

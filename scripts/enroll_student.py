@@ -25,7 +25,13 @@ from app.config import settings
 def enroll_student(name: str, student_number: str, photo_paths: list[str], group_name: str = "Group A", course_code: str = "COURSE-101"):
     db = SessionLocal()
     try:
-        # 1. Find or create course and group
+        # 1. Reject duplicate student registration
+        existing = db.query(Student).filter_by(student_number=student_number).first()
+        if existing:
+            print(f"[ERROR] Student with ID '{student_number}' is already registered as '{existing.name}'. Duplicate registration is not allowed.")
+            return
+
+        # 2. Find or create course and group
         course = db.query(Course).filter_by(code=course_code).first()
         if not course:
             course = Course(code=course_code, name="Default Course")
@@ -38,26 +44,18 @@ def enroll_student(name: str, student_number: str, photo_paths: list[str], group
             db.add(group)
             db.flush()
 
-        # 2. Find or create student
-        student = db.query(Student).filter_by(student_number=student_number).first()
-        if not student:
-            student = Student(name=name, student_number=student_number)
-            db.add(student)
-            db.flush()
-            print(f"[OK] Student created: {student.name} (Student ID: {student.student_number}, DB ID: {student.id})")
-        else:
-            print(f"[INFO] Existing student found: {student.name} (DB ID: {student.id})")
-            if student.name != name:
-                student.name = name
+        # 3. Create student
+        student = Student(name=name, student_number=student_number)
+        db.add(student)
+        db.flush()
+        print(f"[OK] Student created: {student.name} (Student ID: {student.student_number}, DB ID: {student.id})")
 
-        # 3. Associate with group if not already enrolled
-        enrollment = db.query(Enrollment).filter_by(student_id=student.id, group_id=group.id).first()
-        if not enrollment:
-            enrollment = Enrollment(student_id=student.id, group_id=group.id)
-            db.add(enrollment)
-            print(f"[OK] Student enrolled into group '{group.name}'")
+        # 4. Associate with group
+        enrollment = Enrollment(student_id=student.id, group_id=group.id)
+        db.add(enrollment)
+        print(f"[OK] Student enrolled into group '{group.name}'")
 
-        # 4. Process photos and persist embeddings
+        # 5. Process photos and persist embeddings
         dest_dir = settings.STORAGE_PATH / student.student_number
         dest_dir.mkdir(parents=True, exist_ok=True)
 
@@ -89,6 +87,11 @@ def enroll_student(name: str, student_number: str, photo_paths: list[str], group
                 print(f"[OK] Embedding generated for '{src_path.name}' (Confidence: {score:.2f})")
             except Exception as e:
                 print(f"[WARN] Could not process face in '{src_path.name}': {e}")
+
+        if embeddings_added == 0:
+            db.rollback()
+            print("[ERROR] No valid face embeddings could be generated from the photos.")
+            return
 
         db.commit()
         print(f"\n[SUCCESS] Enrollment completed for {student.name}. Total embeddings added: {embeddings_added}")

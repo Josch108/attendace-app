@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Attendance - Instructor Live Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .pulse-green {
+      animation: pulse-green 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse-green {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.25s ease-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+  <!-- TOP NAVIGATION BAR -->
+  <header class="bg-slate-900 border-b border-slate-800 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30 shadow-md">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-lg">
+        🎓
+      </div>
+      <div>
+        <h1 class="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+          Smart Attendance <span class="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 font-medium border border-blue-500/30">Instructor Live</span>
+        </h1>
+        <p class="text-xs text-slate-400">Continuous Vision & Biometric Tracking</p>
+      </div>
+    </div>
+
+    <!-- Active Session & Navigation Controls -->
+    <div class="flex items-center gap-3">
+      <div id="wsBadge" class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-800 border border-slate-700 text-slate-400">
+        <span class="w-2 h-2 rounded-full bg-slate-500"></span>
+        <span id="wsStatusText">Standby</span>
+      </div>
+
+      <div id="timerBadge" class="hidden font-mono text-xs px-3 py-1 rounded-full bg-blue-950/70 border border-blue-700/50 text-blue-300 font-semibold">
+        ⏱️ <span id="sessionTimer">00:00:00</span>
+      </div>
+
+      <a
+        href="/enroll"
+        class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5"
+      >
+        <span>📸</span> Enroll Students
+      </a>
+
+      <button
+        id="btnEndSession"
+        onclick="endCurrentSession()"
+        class="hidden px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold rounded-lg shadow-sm transition flex items-center gap-1.5"
+      >
+        <span>⏹️</span> End Class
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
+    <!-- SESSION CONTROL BANNER (Shown when no session is active) -->
+    <div id="sessionStartBanner" class="bg-gradient-to-r from-blue-950/40 via-slate-900 to-indigo-950/40 border border-blue-800/40 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+      <div class="space-y-1 text-center md:text-left">
+        <h2 class="text-xl font-bold text-white flex items-center gap-2 justify-center md:justify-start">
+          <span>🚀</span> Ready to Start Class Attendance?
+        </h2>
+        <p class="text-sm text-slate-400">
+          Select an academic group and click "Start Session" to activate camera tracking and live attendance.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-3 w-full md:w-auto">
+        <select
+          id="selectGroup"
+          class="px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-48"
+        >
+          <option value="Group A" selected>Group A</option>
+          <option value="Group B">Group B</option>
+          <option value="Group C">Group C</option>
+        </select>
+
+        <button
+          onclick="startNewSession()"
+          class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-xl shadow-lg hover:shadow-blue-500/25 transition whitespace-nowrap flex items-center gap-2"
+        >
+          <span>▶️</span> Start Session
+        </button>
+      </div>
+    </div>
+
+    <!-- ACTIVE SESSION BANNER (Shown when a session is active) -->
+    <div id="sessionActiveBanner" class="hidden bg-slate-900/90 border border-emerald-800/40 rounded-2xl p-4 shadow-lg flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="w-3 h-3 rounded-full bg-emerald-400 pulse-green"></span>
+        <div>
+          <span class="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Class Session Active</span>
+          <h3 id="activeSessionTitle" class="text-base font-bold text-white">Session # --</h3>
+        </div>
+      </div>
+      <div class="text-xs text-slate-400 flex items-center gap-2">
+        <span>Vision camera is reporting attendance in real-time</span>
+      </div>
+    </div>
+
+    <!-- METRICS CARDS (Real-Time Aggregates) -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <!-- Card 1: Enrolled -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4.5 shadow-sm">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
+          <span>Enrolled</span>
+          <span class="text-base">📋</span>
+        </div>
+        <div class="text-3xl font-extrabold text-white" id="cardEnrolled">0</div>
+        <div class="text-[11px] text-slate-500 mt-1">Students in cohort</div>
+      </div>
+
+      <!-- Card 2: Present Now -->
+      <div class="bg-slate-900/80 border border-emerald-900/40 rounded-2xl p-4.5 shadow-sm relative overflow-hidden">
+        <div class="flex items-center justify-between text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2">
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-green"></span>
+            Present Now
+          </span>
+          <span class="text-base">👤</span>
+        </div>
+        <div class="text-3xl font-extrabold text-emerald-400" id="cardPresent">0</div>
+        <div class="text-[11px] text-slate-500 mt-1">Inside classroom</div>
+      </div>
+
+      <!-- Card 3: Missing / Left -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4.5 shadow-sm">
+        <div class="flex items-center justify-between text-amber-400 text-xs font-semibold uppercase tracking-wider mb-2">
+          <span>Absent / Left</span>
+          <span class="text-base">🚪</span>
+        </div>
+        <div class="text-3xl font-extrabold text-amber-400" id="cardAbsent">0</div>
+        <div class="text-[11px] text-slate-500 mt-1">Outside or not seen</div>
+      </div>
+
+      <!-- Card 4: Attendance Rate -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4.5 shadow-sm">
+        <div class="flex items-center justify-between text-indigo-400 text-xs font-semibold uppercase tracking-wider mb-2">
+          <span>Avg. Attendance</span>
+          <span class="text-base">📊</span>
+        </div>
+        <div class="text-3xl font-extrabold text-indigo-300" id="cardPercentage">0%</div>
+        <div class="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+          <div id="cardProgressBar" class="bg-indigo-500 h-full w-0 transition-all duration-500"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TWO-COLUMN WORKSPACE: ATTENDANCE TABLE & LIVE FEED -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Left Column: Live Attendance Table (8 cols) -->
+      <div class="lg:col-span-8 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+          <h3 class="font-bold text-white text-base flex items-center gap-2">
+            <span>📝</span> Live Attendance List
+          </h3>
+          <div class="flex items-center gap-2">
+            <input
+              type="text"
+              id="searchTable"
+              placeholder="Search student..."
+              class="px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-48"
+            />
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-950/80 text-slate-400 uppercase tracking-wider text-[11px]">
+              <tr>
+                <th class="py-3 px-3.5 rounded-l-lg">Student</th>
+                <th class="py-3 px-3.5">Status</th>
+                <th class="py-3 px-3.5">First Seen</th>
+                <th class="py-3 px-3.5">Last Seen</th>
+                <th class="py-3 px-3.5">Time Present</th>
+                <th class="py-3 px-3.5">% Class</th>
+                <th class="py-3 px-3.5 text-right rounded-r-lg">Action</th>
+              </tr>
+            </thead>
+            <tbody id="attendanceTbody" class="divide-y divide-slate-800/60 font-medium">
+              <tr>
+                <td colspan="7" class="py-12 text-center text-slate-500 italic">
+                  Checking active sessions...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Right Column: Real-Time Event Feed (4 cols) -->
+      <div class="lg:col-span-4 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+          <h3 class="font-bold text-white text-base flex items-center gap-2">
+            <span>⚡</span> Real-Time Activity Feed
+          </h3>
+          <span class="text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded">Live Stream</span>
+        </div>
+
+        <div id="eventFeedContainer" class="flex-1 overflow-y-auto space-y-2.5 max-h-[480px] pr-1">
+          <div class="text-xs text-slate-500 italic text-center py-10">
+            Waiting for vision tracking events...
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
+          <span>Connected via WebSocket</span>
+          <button onclick="clearEventFeed()" class="hover:text-slate-300">Clear Feed</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- MANUAL CORRECTION MODAL -->
+  <div id="correctionModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <h3 class="text-lg font-bold text-white">Manual Attendance Override</h3>
+        <button onclick="closeCorrectionModal()" class="text-slate-400 hover:text-white text-xl">&times;</button>
+      </div>
+
+      <div class="space-y-3 text-sm">
+        <div>
+          <span class="text-xs text-slate-400 uppercase">Student:</span>
+          <p id="modalStudentName" class="font-semibold text-white text-base"></p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Set Status</label>
+          <select id="modalStatusSelect" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="PRESENT">PRESENT</option>
+            <option value="ABSENT">ABSENT</option>
+            <option value="LEFT">LEFT</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Auditable Justification Reason</label>
+          <textarea
+            id="modalReasonText"
+            rows="3"
+            placeholder="e.g. Student was present participating in laboratory"
+            class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button
+          onclick="closeCorrectionModal()"
+          class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition"
+        >
+          Cancel
+        </button>
+        <button
+          onclick="submitManualCorrection()"
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg shadow-md transition"
+        >
+          Save Override
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let activeSession = null;
+    let ws = null;
+    let attendanceRecords = [];
+    let timerInterval = null;
+    let activeRecordIdToEdit = null;
+    let pollInterval = null;
+
+    // Helper: Formats an ISO datetime string into the computer's exact local time (e.g. "6:58:13 PM")
+    function formatToLocalTime(dateStr) {
+      if (!dateStr) return "--";
+      let s = String(dateStr).trim();
+      // If the ISO string lacks timezone information, treat it as UTC
+      if (!s.endsWith("Z") && !s.includes("+") && !s.match(/-\d{2}:\d{2}$/)) {
+        s += "Z";
+      }
+      const d = new Date(s);
+      if (isNaN(d.getTime())) return "--";
+      return d.toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true
+      });
+    }
+
+    // 1. WebSocket Lifecycle
+    function connectWebSocket(sessionId) {
+      if (ws) {
+        try { ws.close(); } catch (e) {}
+      }
+
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsUrl = `${protocol}//${window.location.host}/ws/class-sessions/${sessionId}`;
+      console.log(`Connecting WebSocket to: ${wsUrl}`);
+
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        updateWsBadge("connected", `Live: Session #${sessionId}`);
+      };
+
+      ws.onclose = () => {
+        if (activeSession) {
+          updateWsBadge("disconnected", "Reconnecting...");
+          setTimeout(() => { if (activeSession) connectWebSocket(activeSession.id); }, 3000);
+        } else {
+          updateWsBadge("offline", "Standby");
+        }
+      };
+
+      ws.onerror = (err) => {
+        console.error("WebSocket error:", err);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          handleWebSocketMessage(msg);
+        } catch (e) {
+          console.error("Failed to parse WS JSON:", e);
+        }
+      };
+    }
+
+    function handleWebSocketMessage(msg) {
+      if (msg.type === "attendance_update") {
+        const update = msg.data;
+        const idx = attendanceRecords.findIndex(r => r.student_id === update.student_id);
+        if (idx !== -1) {
+          attendanceRecords[idx].status = update.status;
+          attendanceRecords[idx].first_seen_at = update.first_seen_at;
+          attendanceRecords[idx].last_seen_at = update.last_seen_at;
+          attendanceRecords[idx].total_seconds = update.total_seconds;
+          attendanceRecords[idx].percentage = update.percentage;
+          if (update.source) attendanceRecords[idx].source = update.source;
+        } else {
+          attendanceRecords.push({
+            id: update.record_id,
+            student_id: update.student_id,
+            student_name: update.name,
+            student_number: update.student_number,
+            status: update.status,
+            first_seen_at: update.first_seen_at,
+            last_seen_at: update.last_seen_at,
+            total_seconds: update.total_seconds,
+            percentage: update.percentage,
+            source: update.source || "vision"
+          });
+        }
+        renderTable();
+        updateMetricsCards();
+
+      } else if (msg.type === "event_log") {
+        addFeedItem(msg);
+
+      } else if (msg.type === "session_ended") {
+        alert("The instructor has concluded this class session.");
+        stopTimer();
+        onSessionEnded();
+      }
+    }
+
+    function updateWsBadge(status, text) {
+      const badge = document.getElementById("wsBadge");
+      if (status === "connected") {
+        badge.className = "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-950/70 border border-emerald-700/50 text-emerald-300";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 pulse-green"></span><span>${text}</span>`;
+      } else if (status === "disconnected") {
+        badge.className = "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-rose-950/70 border border-rose-700/50 text-rose-300";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400"></span><span>${text}</span>`;
+      } else {
+        badge.className = "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-800 border border-slate-700 text-slate-400";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-500"></span><span>${text}</span>`;
+      }
+    }
+
+    // 2. Feed Management
+    function addFeedItem(msg) {
+      const container = document.getElementById("eventFeedContainer");
+      const d = msg.data || {};
+      const timeStr = formatToLocalTime(msg.occurred_at);
+
+      let icon = "👀";
+      if (d.event_type === "STUDENT_PRESENT" || d.event_type === "STUDENT_RETURNED") {
+        icon = "🟢";
+      } else if (d.event_type === "STUDENT_TEMPORARILY_MISSING") {
+        icon = "⚠️";
+      } else if (d.event_type === "STUDENT_LEFT") {
+        icon = "🔴";
+      }
+
+      const div = document.createElement("div");
+      div.className = `p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 text-xs flex items-start gap-2.5 transition animate-fade-in`;
+      div.innerHTML = `
+        <span class="text-base">${icon}</span>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-slate-200 truncate">${d.student_name || "Unknown Person"}</span>
+            <span class="text-[10px] text-slate-500 font-mono">${timeStr}</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-0.5 font-mono">${d.event_type} ${d.track_id ? `(Track #${d.track_id})` : ''}</p>
+        </div>
+      `;
+
+      if (container.children.length === 1 && container.children[0].innerText.includes("Waiting")) {
+        container.innerHTML = "";
+      }
+      container.prepend(div);
+
+      if (container.children.length > 30) {
+        container.removeChild(container.lastChild);
+      }
+    }
+
+    function clearEventFeed() {
+      document.getElementById("eventFeedContainer").innerHTML = '<div class="text-xs text-slate-500 italic text-center py-10">Feed cleared. Waiting for new events...</div>';
+    }
+
+    // 3. Active Session Check on Page Load
+    async function checkExistingActiveSession() {
+      try {
+        const res = await fetch("/api/class-sessions/active");
+        if (!res.ok) return;
+        const session = await res.json();
+        if (session && session.id && session.status === "active") {
+          console.log("Found existing active session:", session);
+          activeSession = session;
+          onSessionActivated(session);
+        } else {
+          onSessionEnded();
+        }
+      } catch (e) {
+        console.error("Error checking active session:", e);
+        onSessionEnded();
+      }
+    }
+
+    // 4. Session Operations
+    async function startNewSession() {
+      const groupName = document.getElementById("selectGroup").value;
+      try {
+        const res = await fetch("/api/class-sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ group_name: groupName, course_code: "COURSE-101" })
+        });
+        const data = await res.json();
+        if (res.status === 409) {
+          // Already active, sync with it
+          await checkExistingActiveSession();
+          return;
+        }
+        if (!res.ok) throw new Error(data.detail || "Could not start session");
+
+        activeSession = data;
+        onSessionActivated(data);
+      } catch (e) {
+        alert("Error starting session: " + e.message);
+      }
+    }
+
+    async function endCurrentSession() {
+      if (!activeSession) return;
+      if (!confirm(`Are you sure you want to end session #${activeSession.id}? This will close intervals and lock attendance.`)) return;
+
+      try {
+        const res = await fetch(`/api/class-sessions/${activeSession.id}/end`, { method: "POST" });
+        if (!res.ok) throw new Error("Failed to end session");
+        const summary = await res.json();
+        alert(`Session #${activeSession.id} ended. Average attendance: ${summary.average_percentage}%`);
+        onSessionEnded();
+      } catch (e) {
+        alert("Error ending session: " + e.message);
+      }
+    }
+
+    function onSessionActivated(session) {
+      document.getElementById("sessionStartBanner").classList.add("hidden");
+      document.getElementById("sessionActiveBanner").classList.remove("hidden");
+      document.getElementById("activeSessionTitle").innerText = `Session #${session.id} - ${session.group_name}`;
+      document.getElementById("btnEndSession").classList.remove("hidden");
+      document.getElementById("timerBadge").classList.remove("hidden");
+
+      connectWebSocket(session.id);
+      loadSessionAttendance(session.id);
+      startTimer(new Date(session.started_at));
+
+      // Periodic safety poll every 3 seconds in case of missed WebSocket frames
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(() => {
+        if (activeSession) loadSessionAttendance(activeSession.id);
+      }, 3000);
+    }
+
+    function onSessionEnded() {
+      stopTimer();
+      if (pollInterval) clearInterval(pollInterval);
+      activeSession = null;
+      document.getElementById("sessionStartBanner").classList.remove("hidden");
+      document.getElementById("sessionActiveBanner").classList.add("hidden");
+      document.getElementById("btnEndSession").classList.add("hidden");
+      document.getElementById("timerBadge").classList.add("hidden");
+      updateWsBadge("offline", "Standby");
+      if (ws) {
+        try { ws.close(); } catch(e){}
+      }
+      attendanceRecords = [];
+      renderTable();
+      updateMetricsCards();
+    }
+
+    async function loadSessionAttendance(sessionId) {
+      try {
+        const res = await fetch(`/api/class-sessions/${sessionId}/attendance`);
+        if (!res.ok) throw new Error("Could not load attendance data");
+        const data = await res.json();
+        attendanceRecords = data.records || [];
+        renderTable();
+        updateMetricsCards();
+      } catch (e) {
+        console.error("Error loading attendance:", e);
+      }
+    }
+
+    // 5. Render Table & Metrics
+    function renderTable() {
+      const q = document.getElementById("searchTable").value.toLowerCase().trim();
+      const tbody = document.getElementById("attendanceTbody");
+
+      if (!activeSession) {
+        tbody.innerHTML = '<tr><td colspan="7" class="py-12 text-center text-slate-500 italic">No active session. Select group and click "Start Session" to begin tracking.</td></tr>';
+        return;
+      }
+
+      const filtered = attendanceRecords.filter(r =>
+        r.student_name.toLowerCase().includes(q) || r.student_number.toLowerCase().includes(q)
+      );
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-slate-500 italic">No matching students found in this group.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(r => {
+        let badgeClass = "bg-slate-800 text-slate-400 border-slate-700";
+        if (r.status === "PRESENT") badgeClass = "bg-emerald-950/80 text-emerald-300 border-emerald-700/60";
+        else if (r.status === "TEMPORARILY_MISSING") badgeClass = "bg-amber-950/80 text-amber-300 border-amber-700/60";
+        else if (r.status === "LEFT") badgeClass = "bg-rose-950/80 text-rose-300 border-rose-700/60";
+
+        const firstSeen = r.first_seen_at ? formatToLocalTime(r.first_seen_at) : "--";
+        const lastSeen = r.last_seen_at ? formatToLocalTime(r.last_seen_at) : "--";
+
+        const mins = Math.floor(r.total_seconds / 60);
+        const secs = r.total_seconds % 60;
+        const timeFormatted = `${mins}m ${secs}s`;
+
+        return `
+          <tr class="hover:bg-slate-800/40 transition">
+            <td class="py-3 px-3.5">
+              <div class="font-semibold text-white">${r.student_name}</div>
+              <div class="text-[11px] text-slate-400 font-mono">${r.student_number}</div>
+            </td>
+            <td class="py-3 px-3.5">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${badgeClass}">
+                ${r.status}
+              </span>
+            </td>
+            <td class="py-3 px-3.5 font-mono text-slate-300">${firstSeen}</td>
+            <td class="py-3 px-3.5 font-mono text-slate-300">${lastSeen}</td>
+            <td class="py-3 px-3.5 font-mono text-slate-300">${timeFormatted}</td>
+            <td class="py-3 px-3.5 font-mono font-semibold ${r.percentage >= 80 ? 'text-emerald-400' : r.percentage >= 50 ? 'text-amber-400' : 'text-slate-400'}">
+              ${r.percentage}%
+            </td>
+            <td class="py-3 px-3.5 text-right">
+              <button
+                onclick="openCorrectionModal(${r.id}, '${r.student_name}', '${r.status}')"
+                class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-slate-300 hover:text-white transition"
+              >
+                Edit
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function updateMetricsCards() {
+      const total = attendanceRecords.length;
+      const present = attendanceRecords.filter(r => r.status === "PRESENT").length;
+      const absent = total - present;
+
+      const sumPct = attendanceRecords.reduce((acc, r) => acc + (r.percentage || 0), 0);
+      const avgPct = total > 0 ? Math.round(sumPct / total) : 0;
+
+      document.getElementById("cardEnrolled").innerText = total;
+      document.getElementById("cardPresent").innerText = present;
+      document.getElementById("cardAbsent").innerText = absent;
+      document.getElementById("cardPercentage").innerText = `${avgPct}%`;
+      document.getElementById("cardProgressBar").style.width = `${avgPct}%`;
+    }
+
+    document.getElementById("searchTable").addEventListener("input", renderTable);
+
+    // 6. Timer
+    function startTimer(startDate) {
+      stopTimer();
+      timerInterval = setInterval(() => {
+        const elapsed = Math.floor((new Date() - startDate) / 1000);
+        const h = String(Math.floor(elapsed / 3600)).padStart(2, "0");
+        const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2, "0");
+        const s = String(elapsed % 60).padStart(2, "0");
+        document.getElementById("sessionTimer").innerText = `${h}:${m}:${s}`;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+      document.getElementById("sessionTimer").innerText = "00:00:00";
+    }
+
+    // 7. Manual Correction Modal
+    function openCorrectionModal(recordId, studentName, currentStatus) {
+      activeRecordIdToEdit = recordId;
+      document.getElementById("modalStudentName").innerText = studentName;
+      document.getElementById("modalStatusSelect").value = currentStatus === "ABSENT" ? "PRESENT" : currentStatus;
+      document.getElementById("modalReasonText").value = "";
+      document.getElementById("correctionModal").classList.remove("hidden");
+    }
+
+    function closeCorrectionModal() {
+      document.getElementById("correctionModal").classList.add("hidden");
+      activeRecordIdToEdit = null;
+    }
+
+    async function submitManualCorrection() {
+      if (!activeSession || !activeRecordIdToEdit) return;
+      const newStatus = document.getElementById("modalStatusSelect").value;
+      const reason = document.getElementById("modalReasonText").value.trim();
+
+      if (!reason) {
+        alert("Please provide an auditable justification reason.");
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/class-sessions/${activeSession.id}/attendance/${activeRecordIdToEdit}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ new_status: newStatus, reason: reason })
+        });
+        if (!res.ok) throw new Error("Correction failed");
+        closeCorrectionModal();
+        loadSessionAttendance(activeSession.id);
+      } catch (e) {
+        alert("Error saving correction: " + e.message);
+      }
+    }
+
+    // Initialize check on page load
+    checkExistingActiveSession();
+  </script>
+</body>
+</html>

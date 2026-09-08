@@ -30,38 +30,31 @@ class FaceService:
                 self._initialized = True
         return self._app
 
-    def extract_embedding_from_file(self, image_path: Path | str) -> tuple[np.ndarray, float, list]:
+    def extract_embedding_from_image(self, img: np.ndarray, source_name: str = "memory") -> tuple[np.ndarray, float, list]:
         """
-        Reads an image from disk, detects the primary face, and extracts its 512D embedding.
+        Detects primary face in a numpy image (BGR) and extracts its 512D embedding.
         Returns:
             (embedding, confidence, bbox)
         """
-        img_path = Path(image_path)
-        if not img_path.exists():
-            raise FileNotFoundError(f"Image not found: {img_path}")
-
-        # Read using OpenCV
-        img = cv2.imread(str(img_path))
-        if img is None:
-            raise ValueError(f"Failed to decode image: {img_path}")
+        if img is None or img.size == 0:
+            raise ValueError("Empty image provided.")
 
         app = self._get_app()
         if app is None:
-            # Fallback synthetic embedding for development when model weights are not yet downloaded
             print("[FaceService] Warning: Model not initialized, generating synthetic normalized embedding.")
-            rng = np.random.default_rng(seed=hash(img_path.name) % (2**32))
+            rng = np.random.default_rng(seed=hash(source_name) % (2**32))
             emb = rng.standard_normal(512).astype(np.float32)
             emb = emb / np.linalg.norm(emb)
             return emb, 0.99, [0, 0, 100, 100]
 
         faces = app.get(img)
         if not faces:
-            raise ValueError(f"No face detected in image: {img_path}")
+            raise ValueError(f"No face detected in image ({source_name}).")
 
         # If multiple faces detected, select the largest bounding box area
         if len(faces) > 1:
             faces = sorted(faces, key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]), reverse=True)
-            print(f"[FaceService] Note: Detected {len(faces)} faces in {img_path.name}. Using primary face.")
+            print(f"[FaceService] Note: Detected {len(faces)} faces in {source_name}. Using primary face.")
 
         face = faces[0]
         embedding = face.normed_embedding.astype(np.float32)
@@ -69,6 +62,34 @@ class FaceService:
         bbox = face.bbox.astype(int).tolist()
 
         return embedding, score, bbox
+
+    def extract_embedding_from_bytes(self, image_bytes: bytes, source_name: str = "upload") -> tuple[np.ndarray, float, list, np.ndarray]:
+        """
+        Decodes raw image bytes in memory and extracts its embedding.
+        Returns:
+            (embedding, confidence, bbox, decoded_bgr_image)
+        """
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None:
+            raise ValueError("Failed to decode image bytes.")
+        
+        emb, score, bbox = self.extract_embedding_from_image(img, source_name=source_name)
+        return emb, score, bbox, img
+
+    def extract_embedding_from_file(self, image_path: Path | str) -> tuple[np.ndarray, float, list]:
+        """
+        Reads an image from disk, detects the primary face, and extracts its 512D embedding.
+        """
+        img_path = Path(image_path)
+        if not img_path.exists():
+            raise FileNotFoundError(f"Image not found: {img_path}")
+
+        img = cv2.imread(str(img_path))
+        if img is None:
+            raise ValueError(f"Failed to decode image: {img_path}")
+
+        return self.extract_embedding_from_image(img, source_name=img_path.name)
 
 # Singleton instance
 face_service = FaceService()
