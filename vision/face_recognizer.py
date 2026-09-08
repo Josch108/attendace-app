@@ -15,12 +15,20 @@ from app.config import settings
 class FaceRecognizer:
     """
     Handles comparison of detected face embeddings against registered student embeddings from the database.
+    Supports dynamic hot-reloading when new students enroll without requiring pipeline restarts.
     """
     def __init__(self, match_threshold: float = None):
         self.threshold = match_threshold or settings.FACE_MATCH_THRESHOLD
         self.known_embeddings = np.empty((0, 512), dtype=np.float32)
         self.known_students = []
         self.load_database_embeddings()
+
+    def get_student_name(self, student_id: int) -> Optional[str]:
+        """Looks up registered student name by student_id."""
+        for s in self.known_students:
+            if s["student_id"] == student_id:
+                return s["name"]
+        return None
 
     def load_database_embeddings(self):
         """
@@ -39,7 +47,6 @@ class FaceRecognizer:
             students_meta = []
             for r in records:
                 vec = r.to_numpy()
-                # Ensure L2 normalization for exact cosine similarity
                 norm = np.linalg.norm(vec)
                 if norm > 0:
                     vec = vec / norm
@@ -61,6 +68,32 @@ class FaceRecognizer:
         finally:
             db.close()
 
+    def reload_if_updated(self) -> bool:
+        """
+        Quickly checks if new embeddings have been registered in the database.
+        If the count changed, reloads embeddings dynamically in memory without restarting.
+        Returns True if reloaded, False otherwise.
+        """
+        try:
+            db = SessionLocal()
+            try:
+                current_count = (
+                    db.query(FaceEmbedding)
+                    .join(Student, FaceEmbedding.student_id == Student.id)
+                    .filter(FaceEmbedding.revoked_at == None, Student.is_active == True)
+                    .count()
+                )
+                if current_count != len(self.known_students):
+                    print(f"\n[FaceRecognizer] Dynamic update: {current_count} embeddings found (was {len(self.known_students)}). Hot-reloading...")
+                    self.load_database_embeddings()
+                    return True
+                return False
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"[FaceRecognizer] Warning: Error checking embedding updates: {e}")
+            return False
+
     def recognize_crop(self, crop: np.ndarray) -> Tuple[Optional[int], Optional[str], float]:
         """
         Detects face in the cropped image and calculates cosine similarity against enrolled students.
@@ -80,7 +113,6 @@ class FaceRecognizer:
         if not faces:
             return None, None, 0.0
 
-        # Pick the largest face if multiple faces are present in the crop
         face = max(faces, key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]))
         q_emb = face.normed_embedding.astype(np.float32)
         q_norm = np.linalg.norm(q_emb)
@@ -90,7 +122,6 @@ class FaceRecognizer:
         if len(self.known_embeddings) == 0:
             return None, "Unknown", float(face.det_score if hasattr(face, "det_score") else 0.5)
 
-        # Cosine similarity: dot product between L2-normalized vectors
         similarities = np.dot(self.known_embeddings, q_emb)
         best_idx = int(np.argmax(similarities))
         best_score = float(similarities[best_idx])

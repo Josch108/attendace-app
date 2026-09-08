@@ -47,12 +47,14 @@ ENV/
 *.swp
 *.swo
 
-# Project data / Media / Biometrics
+# Project data / Media / Biometrics / Models
 data/students/*
 !data/students/.gitkeep
 data/incoming_photos/*
 !data/incoming_photos/.gitkeep
 *.npy
+*.pt
+*.onnx
 
 # OS specific
 .DS_Store

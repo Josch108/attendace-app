@@ -1,120 +1,95 @@
-# Smart Attendance System - Database, Vision & Tracking
+# Smart Attendance System - Database, Vision, WebSockets & Real-Time Dashboard
 
-Real-time classroom attendance tracking platform using computer vision (OpenCV + YOLOv8 + ByteTrack + InsightFace) and a FastAPI + SQLAlchemy backend.
+Classroom attendance tracking platform using computer vision (OpenCV + YOLOv8 + ByteTrack + InsightFace), WebSocket streaming, and a FastAPI + SQLAlchemy backend.
 
 ---
 
-## 1. Database Architecture & Setup
+## ⚡ 1. Single-Command Startup (All-in-One)
 
-The system utilizes **SQLAlchemy** with dual compatibility:
-- **Local SQLite (default):** An `attendance.db` file is automatically generated in the project root for immediate development and local testing without external dependencies.
-- **PostgreSQL:** For production or Docker deployments, configure `DATABASE_URL` in `.env`:
-  ```env
-  DATABASE_URL=postgresql://user:password@localhost:5432/attendance_db
-  ```
+You can launch the entire system (Backend server + Web Dashboard in browser + Camera Vision tracking) using **one single command** without opening multiple terminals:
 
-### Relational Entities (12 tables):
+```bash
+./run.sh
+```
+*(Or alternatively: `./.venv/bin/python run.py`)*
+
+### What this single command does:
+1. **Starts the FastAPI Backend:** Launches the API and WebSocket engine on port `8000` in the background.
+2. **Waits for Health Check:** Verifies the server is online and ready.
+3. **Opens the Browser:** Automatically opens your default web browser to the **Instructor Live Dashboard** at `http://localhost:8000/dashboard`.
+4. **Starts the Vision Pipeline:** Opens your webcam with YOLOv8 person detection and ByteTrack tracking, automatically linked to the active class session.
+5. **Clean Shutdown:** Pressing **`q`** in the camera window or **`Ctrl+C`** in the terminal cleanly terminates all background processes without leaving zombie processes.
+
+---
+
+## 2. Instructor Live Dashboard (`/dashboard`)
+
+The live dashboard connects directly to the backend via **WebSockets** (`/ws/class-sessions/{id}`) to stream real-time updates as the camera observes students:
+
+1. **Session Controls:** Select academic cohort (e.g. *Group A*) and click **"Start Session"**. A running timer displays elapsed class time.
+2. **Real-Time Metric Cards:**
+   - **Enrolled:** Total students registered in the cohort.
+   - **Present Now:** Glowing live counter of students inside the classroom.
+   - **Absent / Left:** Students not yet seen or who stepped out past the absence timeout (45s).
+   - **Avg. Attendance:** Progress bar and group percentage.
+3. **Live Attendance Table:** Automatically shifts row colors and updates timestamps (`first_seen_at`, `last_seen_at`, `total_seconds`) when students are recognized.
+4. **Chronological Event Feed:** Live stream of vision events (e.g. `10:15:02 - Josue Chan detected [PRESENT]`).
+5. **Manual Overrides:** Teacher can click **"Edit"** on any student to override status with an auditable justification reason.
+6. **Conclude Class:** Click **"End Class"** to lock all open intervals and finalize calculations.
+
+---
+
+## 3. Fast Student Face Enrollment (`/enroll`)
+
+1. Step in front of the camera, enter **Full Name** and **Student ID (Matrícula)**.
+2. Click **"Capture Photos"**: Triggers a 3-second countdown and takes a rapid burst of **3 to 5 photos** with camera flash.
+3. Review thumbnails and click **"Confirm & Enroll"**.
+4. **Anti-Duplication:** Automatically blocks duplicate student IDs and duplicate faces ($\ge 0.72$ similarity).
+5. View, search, or delete enrolled students in the **Registered Students Directory** table.
+
+Alternatively, run the desktop webcam kiosk from terminal:
+```bash
+./.venv/bin/python scripts/webcam_enroll.py
+```
+
+---
+
+## 4. Manual / Individual Service Commands
+
+If you ever want to run services in separate terminals:
+
+```bash
+# Terminal 1: Backend API & WebSockets
+./.venv/bin/uvicorn app.main:app --reload --app-dir backend --port 8000
+
+# Terminal 2: Vision Pipeline
+./.venv/bin/python vision/main.py --source 0 --auto-session --group "Group A"
+```
+
+---
+
+## 5. Database Architecture & Models
+
+Dual compatibility via **SQLAlchemy**:
+- **SQLite (default):** `attendance.db` in project root.
+- **PostgreSQL:** Configure `DATABASE_URL` in `.env`.
+
+### Relational Entities:
 - `students`: Enrolled students (full name, student ID / roll number, active status).
 - `face_embeddings`: Facial biometric vectors (512-dimensional float32 binary format), photo file path, model version, and quality score.
-- `courses` & `groups`: Courses and academic cohorts/groups.
+- `courses` & `groups`: Courses and academic cohorts.
 - `enrollments`: Many-to-many relationship linking students to groups.
 - `class_sessions`: Class sessions initiated by instructors.
-- `attendance_records`: Summary record per student and session (presence status, first/last seen timestamps, accumulated presence seconds, percentage).
+- `attendance_records`: Summary record per student and session (status, first/last seen, seconds, percentage).
 - `attendance_intervals`: Continuous presence intervals (`started_at`, `ended_at`, `close_reason`).
-- `attendance_events`: Immutable, idempotent audit log of vision and business events.
-- `manual_corrections`: Auditable log of teacher overrides and justifications.
-- `cameras`: Video capture sources and classroom camera devices.
+- `attendance_events`: Immutable audit log of vision and business events.
+- `manual_corrections`: Teacher overrides and audit trail.
+- `cameras`: Video capture sources.
 - `users`: Teachers and administrators.
 
 ---
 
-## 2. Real-Time Vision & Tracking Pipeline
-
-The `vision/` module implements continuous detection and identity tracking:
-
-```text
-Camera (OpenCV) ──▶ YOLOv8 (Persons) ──▶ ByteTrack (Temporal track_id)
-                                                │
-                                    InsightFace (Selective Extraction)
-                                                │
-                                    Cosine Similarity vs Registered Embeddings
-                                                │
-                                       AttendanceManager
-                     (States: ABSENT -> PRESENT -> TEMPORARILY_MISSING -> LEFT)
-```
-
-### Running the Vision Pipeline:
-
-1. **Using your webcam (default device index 0):**
-   ```bash
-   ./.venv/bin/python vision/main.py --source 0
-   ```
-
-2. **Using a video file for reproducible testing:**
-   ```bash
-   ./.venv/bin/python vision/main.py --source /path/to/test_video.mp4
-   ```
-
-3. **Configurable parameters & CLI flags:**
-   - `--conf 0.40`: YOLOv8 person detection confidence threshold.
-   - `--threshold 0.50`: Cosine similarity threshold against registered face embeddings.
-   - `--timeout 45.0`: Absence tolerance in seconds before closing intervals and marking `LEFT`.
-   - `--recheck 5`: Frame interval to re-evaluate faces on active tracks.
-   - `--output result.mp4`: Save an annotated video file with bounding boxes and overlay.
-   - `--no-gui`: Run in headless mode without a GUI window.
-
-Press `q` inside the video window to quit. Upon exit, a consolidated attendance summary is displayed in the terminal.
-
----
-
-## 3. How to Enroll Students & Facial Photos
-
-### Option A: Bulk Enrollment from Directory (Recommended)
-Place student photos inside `data/incoming_photos/`. You can organize them in two formats:
-
-1. **Subfolder per student (recommended for multiple photos per student to boost accuracy):**
-   ```text
-   data/incoming_photos/
-   ├── John_Doe_20230001/
-   │   ├── frontal.jpg
-   │   └── side_angle.jpg
-   └── Mary_Smith_20230002/
-       └── photo1.png
-   ```
-
-2. **Single image files:**
-   ```text
-   data/incoming_photos/
-   ├── John_Doe_20230001.jpg
-   └── Mary_Smith_20230002.png
-   ```
-
-Run the bulk enrollment script:
-```bash
-./.venv/bin/python scripts/bulk_enroll.py --folder data/incoming_photos --group "Group A"
-```
-
-The script will:
-- Parse student name and ID.
-- Create or update the student in the database.
-- Enroll them into the specified group.
-- Store photos securely under `data/students/{student_id}/`.
-- Extract 512D facial embeddings with InsightFace and store them in the database.
-
----
-
-### Option B: Single Student Enrollment via CLI
-```bash
-./.venv/bin/python scripts/enroll_student.py --name "John Doe" --number "20230001" --group "Group A" --photo /path/to/photo.jpg
-```
-Or run interactively (the script prompts for each field):
-```bash
-./.venv/bin/python scripts/enroll_student.py
-```
-
----
-
-## 4. Utility Scripts
+## 6. Utility Scripts
 
 - **List registered students and embeddings:**
   ```bash

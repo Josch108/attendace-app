@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Attendance - Student Enrollment & Directory</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .face-guide {
+      border: 3px dashed rgba(59, 130, 246, 0.75);
+      border-radius: 50% / 60%;
+      pointer-events: none;
+    }
+    .flash {
+      animation: flash-anim 0.3s ease-out;
+    }
+    @keyframes flash-anim {
+      0% { opacity: 0.9; }
+      100% { opacity: 0; }
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center py-8 px-4">
+  <div class="max-w-5xl w-full space-y-8">
+    <!-- Header -->
+    <header class="text-center">
+      <h1 class="text-3xl font-bold tracking-tight text-white flex items-center justify-center gap-2">
+        <span>📸</span> Student Face Enrollment Station
+      </h1>
+      <p class="text-slate-400 text-sm mt-1">
+        Fast webcam capture with anti-duplication validation and real-time student directory.
+      </p>
+    </header>
+
+    <!-- SECTION 1: ENROLLMENT FORM & WEBCAM -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-slate-800/80 backdrop-blur rounded-2xl p-6 border border-slate-700 shadow-xl">
+      <!-- Left Column: Form Details -->
+      <div class="lg:col-span-5 flex flex-col justify-between">
+        <form id="enrollmentForm" class="space-y-4" onsubmit="event.preventDefault();">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+              Full Name
+            </label>
+            <input
+              type="text"
+              id="studentName"
+              placeholder="e.g. John Doe"
+              required
+              class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+              Student ID / Matrícula
+            </label>
+            <input
+              type="text"
+              id="studentNumber"
+              placeholder="e.g. 2309048"
+              required
+              class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p class="text-[11px] text-slate-400 mt-0.5">Must be unique; duplicate IDs and duplicate faces will be rejected.</p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+              Academic Group
+            </label>
+            <input
+              type="text"
+              id="groupName"
+              value="Group A"
+              class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+              Photos to capture (burst)
+            </label>
+            <select
+              id="burstCount"
+              class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="3">3 Photos (Fast)</option>
+              <option value="4" selected>4 Photos (Recommended)</option>
+              <option value="5">5 Photos (High accuracy)</option>
+            </select>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="pt-2 space-y-3">
+            <button
+              type="button"
+              id="btnStartCapture"
+              class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-blue-500/20 transition flex items-center justify-center gap-2"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>Capture Photos</span>
+            </button>
+
+            <button
+              type="button"
+              id="btnSubmit"
+              disabled
+              class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg shadow-lg transition flex items-center justify-center gap-2"
+            >
+              <span>Confirm & Enroll</span>
+            </button>
+          </div>
+        </form>
+
+        <!-- Status Message Banner -->
+        <div id="statusBanner" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+      </div>
+
+      <!-- Right Column: Webcam & Captures -->
+      <div class="lg:col-span-7 flex flex-col items-center">
+        <div class="relative w-full aspect-video bg-black rounded-xl overflow-hidden border border-slate-700 shadow-inner flex items-center justify-center">
+          <video id="videoElement" autoplay playsinline muted class="w-full h-full object-cover"></video>
+          
+          <!-- Face Alignment Oval Guide -->
+          <div class="absolute inset-0 flex items-center justify-center">
+            <div class="face-guide w-48 h-64"></div>
+          </div>
+
+          <!-- Countdown Overlay -->
+          <div id="countdownOverlay" class="absolute inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center">
+            <span id="countdownText" class="text-7xl font-extrabold text-white animate-bounce">3</span>
+          </div>
+
+          <!-- Camera Flash Overlay -->
+          <div id="flashOverlay" class="absolute inset-0 bg-white pointer-events-none opacity-0"></div>
+        </div>
+
+        <!-- Captured Thumbnails -->
+        <div class="w-full mt-4">
+          <div class="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
+            <span>Captured Samples:</span>
+            <span id="capturedCountText">0 photos ready</span>
+          </div>
+          <div id="thumbnailContainer" class="flex gap-2.5 overflow-x-auto pb-1 min-h-[72px]">
+            <div class="text-xs text-slate-500 italic flex items-center">
+              No photos captured yet. Click "Capture Photos" to begin.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: REGISTERED STUDENTS DIRECTORY -->
+    <div class="bg-slate-800/80 backdrop-blur rounded-2xl p-6 border border-slate-700 shadow-xl space-y-4">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-slate-700">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <span>👥</span> Registered Students Directory
+            <span id="studentCountBadge" class="text-xs bg-blue-600/30 text-blue-400 border border-blue-500/40 px-2.5 py-0.5 rounded-full font-medium">0</span>
+          </h2>
+          <p class="text-xs text-slate-400">Students enrolled in the system with active face biometric embeddings.</p>
+        </div>
+
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+          <input
+            type="text"
+            id="searchStudent"
+            placeholder="Search by name or ID..."
+            class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-full sm:w-64"
+          />
+          <button
+            type="button"
+            onclick="loadStudentsTable()"
+            class="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 transition"
+            title="Refresh directory"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Students Table -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-900/60 text-slate-400 text-xs uppercase tracking-wider">
+            <tr>
+              <th class="py-3 px-4 rounded-l-lg">ID</th>
+              <th class="py-3 px-4">Student ID (Matrícula)</th>
+              <th class="py-3 px-4">Full Name</th>
+              <th class="py-3 px-4">Groups</th>
+              <th class="py-3 px-4">Face Embeddings</th>
+              <th class="py-3 px-4 text-right rounded-r-lg">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="studentsTableBody" class="divide-y divide-slate-700/60">
+            <tr>
+              <td colspan="6" class="py-8 text-center text-slate-500 italic">Loading students...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="hiddenCanvas" class="hidden"></canvas>
+
+  <script>
+    const video = document.getElementById("videoElement");
+    const canvas = document.getElementById("hiddenCanvas");
+    const btnStartCapture = document.getElementById("btnStartCapture");
+    const btnSubmit = document.getElementById("btnSubmit");
+    const countdownOverlay = document.getElementById("countdownOverlay");
+    const countdownText = document.getElementById("countdownText");
+    const flashOverlay = document.getElementById("flashOverlay");
+    const thumbnailContainer = document.getElementById("thumbnailContainer");
+    const capturedCountText = document.getElementById("capturedCountText");
+    const statusBanner = document.getElementById("statusBanner");
+
+    const studentsTableBody = document.getElementById("studentsTableBody");
+    const studentCountBadge = document.getElementById("studentCountBadge");
+    const searchStudent = document.getElementById("searchStudent");
+
+    let capturedImages = [];
+    let allStudents = [];
+
+    // 1. Initialize Webcam
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" }
+        });
+        video.srcObject = stream;
+      } catch (err) {
+        showStatus("error", "Could not access webcam: " + err.message);
+      }
+    }
+    startCamera();
+
+    // 2. Fetch and Render Registered Students Directory
+    async function loadStudentsTable() {
+      try {
+        const res = await fetch("/api/students");
+        if (!res.ok) throw new Error("Failed to load students list.");
+        allStudents = await res.json();
+        renderStudentsTable(allStudents);
+      } catch (err) {
+        studentsTableBody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-rose-400">Error: ${err.message}</td></tr>`;
+      }
+    }
+
+    function renderStudentsTable(students) {
+      studentCountBadge.innerText = `${students.length} ${students.length === 1 ? 'Student' : 'Students'}`;
+
+      if (students.length === 0) {
+        studentsTableBody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-500 italic">No students enrolled yet. Use the camera station above to enroll students.</td></tr>`;
+        return;
+      }
+
+      studentsTableBody.innerHTML = students.map(s => {
+        const groups = s.groups && s.groups.length ? s.groups.join(", ") : "Default";
+        return `
+          <tr class="hover:bg-slate-700/30 transition">
+            <td class="py-3 px-4 font-mono text-xs text-slate-400">#${s.id}</td>
+            <td class="py-3 px-4 font-mono font-medium text-white">${s.student_number}</td>
+            <td class="py-3 px-4 font-semibold text-slate-200">${s.name}</td>
+            <td class="py-3 px-4 text-slate-400">${groups}</td>
+            <td class="py-3 px-4">
+              <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-950/70 text-blue-300 border border-blue-700/50">
+                <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                ${s.embeddings_count} ${s.embeddings_count === 1 ? 'sample' : 'samples'}
+              </span>
+            </td>
+            <td class="py-3 px-4 text-right">
+              <button
+                onclick="deleteStudent(${s.id}, '${s.name}', '${s.student_number}')"
+                class="px-2.5 py-1 text-xs text-rose-400 hover:text-rose-200 hover:bg-rose-900/40 rounded transition border border-rose-800/40"
+              >
+                Delete
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    // Search filter
+    searchStudent.addEventListener("input", (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      const filtered = allStudents.filter(s =>
+        s.name.toLowerCase().includes(q) || s.student_number.toLowerCase().includes(q)
+      );
+      renderStudentsTable(filtered);
+    });
+
+    // Delete Student
+    async function deleteStudent(id, name, number) {
+      if (!confirm(`Are you sure you want to delete student "${name}" (${number})?\nThis will remove their profile and all biometric photos.`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/students/${id}`, { method: "DELETE" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to delete student.");
+        
+        showStatus("info", `Student ${name} (${number}) was deleted.`);
+        loadStudentsTable();
+      } catch (err) {
+        showStatus("error", "Delete error: " + err.message);
+      }
+    }
+
+    // Status helpers
+    function showStatus(type, msg) {
+      statusBanner.className = "mt-4 p-3 rounded-lg text-sm " +
+        (type === "success" ? "bg-emerald-950/80 border border-emerald-700 text-emerald-300" :
+         type === "error" ? "bg-rose-950/80 border border-rose-700 text-rose-300" :
+         "bg-blue-950/80 border border-blue-700 text-blue-300");
+      statusBanner.innerHTML = msg;
+      statusBanner.classList.remove("hidden");
+    }
+
+    function triggerFlash() {
+      flashOverlay.classList.remove("flash");
+      void flashOverlay.offsetWidth;
+      flashOverlay.classList.add("flash");
+    }
+
+    // 3. Capture Burst Photos
+    btnStartCapture.addEventListener("click", async () => {
+      const name = document.getElementById("studentName").value.trim();
+      const number = document.getElementById("studentNumber").value.trim();
+
+      if (!name || !number) {
+        showStatus("error", "Please provide both Student Name and Student ID first.");
+        return;
+      }
+
+      // Check if student ID already exists locally in table
+      if (allStudents.some(s => s.student_number.toLowerCase() === number.toLowerCase())) {
+        showStatus("error", `⚠️ Student ID <strong>${number}</strong> is already registered. Duplicate enrollment is not allowed.`);
+        return;
+      }
+
+      statusBanner.classList.add("hidden");
+      btnStartCapture.disabled = true;
+      btnSubmit.disabled = true;
+      capturedImages = [];
+      thumbnailContainer.innerHTML = "";
+
+      const totalPhotos = parseInt(document.getElementById("burstCount").value) || 4;
+
+      // 3-second countdown
+      countdownOverlay.classList.remove("hidden");
+      for (let i = 3; i > 0; i--) {
+        countdownText.innerText = i;
+        await new Promise(r => setTimeout(r, 700));
+      }
+      countdownOverlay.classList.add("hidden");
+
+      // Burst capture
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
+      const ctx = canvas.getContext("2d");
+
+      for (let i = 0; i < totalPhotos; i++) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+        capturedImages.push(dataUrl);
+
+        triggerFlash();
+
+        // Add thumbnail
+        const img = document.createElement("img");
+        img.src = dataUrl;
+        img.className = "w-16 h-16 object-cover rounded-lg border border-blue-500 shadow";
+        thumbnailContainer.appendChild(img);
+        capturedCountText.innerText = `${capturedImages.length} of ${totalPhotos} captured`;
+
+        if (i < totalPhotos - 1) {
+          await new Promise(r => setTimeout(r, 600));
+        }
+      }
+
+      btnStartCapture.disabled = false;
+      btnSubmit.disabled = false;
+      showStatus("info", `Captured ${capturedImages.length} frames! Review thumbnails and click "Confirm & Enroll".`);
+    });
+
+    // 4. Submit to FastAPI Endpoint
+    btnSubmit.addEventListener("click", async () => {
+      const name = document.getElementById("studentName").value.trim();
+      const number = document.getElementById("studentNumber").value.trim();
+      const group = document.getElementById("groupName").value.trim() || "Group A";
+
+      if (!name || !number || capturedImages.length === 0) {
+        showStatus("error", "Missing information or captured photos.");
+        return;
+      }
+
+      btnSubmit.disabled = true;
+      showStatus("info", "Processing photos and extracting face embeddings with InsightFace...");
+
+      try {
+        const res = await fetch("/api/students/enroll-base64", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: name,
+            student_number: number,
+            group_name: group,
+            images: capturedImages
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || "Server error while enrolling student.");
+        }
+
+        showStatus("success", `✅ <strong>${data.name}</strong> enrolled successfully! ${data.embeddings_saved} face embeddings saved to database.`);
+        
+        // Reset form for next student
+        document.getElementById("studentName").value = "";
+        document.getElementById("studentNumber").value = "";
+        capturedImages = [];
+        capturedCountText.innerText = "0 photos ready";
+        thumbnailContainer.innerHTML = '<div class="text-xs text-slate-500 italic flex items-center">Ready for next student.</div>';
+        btnSubmit.disabled = true;
+
+        // Refresh student directory table
+        loadStudentsTable();
+
+      } catch (err) {
+        showStatus("error", "Enrollment rejected: " + err.message);
+        btnSubmit.disabled = false;
+      }
+    });
+
+    // Load directory on page load
+    loadStudentsTable();
+  </script>
+</body>
+</html>

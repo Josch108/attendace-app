@@ -3,6 +3,13 @@ from sqlalchemy import String, Integer, Float, ForeignKey, UniqueConstraint, Dat
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
+def _to_naive_utc(dt: datetime) -> datetime:
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
 class Camera(Base):
     __tablename__ = "cameras"
 
@@ -57,7 +64,9 @@ class AttendanceInterval(Base):
         if not self.started_at:
             return 0
         end = self.ended_at or datetime.now(timezone.utc)
-        return max(0, int((end - self.started_at).total_seconds()))
+        start_naive = _to_naive_utc(self.started_at)
+        end_naive = _to_naive_utc(end)
+        return max(0, int((end_naive - start_naive).total_seconds()))
 
 
 class AttendanceEvent(Base):
