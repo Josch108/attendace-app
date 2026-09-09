@@ -1,13 +1,14 @@
 import time
 import queue
 import threading
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 import requests
 
 class AttendanceClient:
     """
     Non-blocking HTTP client for the Vision Service to report real-time tracking events
     to the FastAPI backend without slowing down video loop FPS.
+    Also syncs active class session and active camera selection dynamically.
     """
     def __init__(self, backend_url: str = "http://localhost:8000", session_id: Optional[int] = None):
         self.backend_url = backend_url.rstrip("/")
@@ -41,6 +42,25 @@ class AttendanceClient:
                     self.session_id = data["id"]
                     return self.session_id
             self.session_id = None
+            return None
+        except Exception:
+            return None
+
+    def fetch_active_camera(self) -> Optional[Union[int, str]]:
+        """
+        Polls backend for the currently active camera selection.
+        Returns integer index (e.g. 0, 1) or string/URL if configured.
+        """
+        try:
+            url = f"{self.backend_url}/api/cameras/active"
+            r = requests.get(url, timeout=1.5)
+            if r.status_code == 200:
+                data = r.json()
+                cam_id = data.get("id")
+                if cam_id is not None:
+                    if str(cam_id).isdigit():
+                        return int(cam_id)
+                    return str(cam_id)
             return None
         except Exception:
             return None
