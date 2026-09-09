@@ -23,13 +23,22 @@
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center py-8 px-4">
   <div class="max-w-5xl w-full space-y-8">
     <!-- Header -->
-    <header class="text-center">
-      <h1 class="text-3xl font-bold tracking-tight text-white flex items-center justify-center gap-2">
-        <span>📸</span> Student Face Enrollment Station
-      </h1>
-      <p class="text-slate-400 text-sm mt-1">
-        Fast webcam capture with anti-duplication validation and real-time student directory.
-      </p>
+    <header class="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+          <span>📸</span> Student Face Enrollment Station
+        </h1>
+        <p class="text-slate-400 text-xs mt-0.5">
+          Fast webcam capture with anti-duplication validation and real-time student directory.
+        </p>
+      </div>
+
+      <a
+        href="/dashboard"
+        class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold rounded-xl transition flex items-center gap-1.5"
+      >
+        <span>📊</span> Return to Dashboard
+      </a>
     </header>
 
     <!-- SECTION 1: ENROLLMENT FORM & WEBCAM -->
@@ -121,6 +130,21 @@
 
       <!-- Right Column: Webcam & Captures -->
       <div class="lg:col-span-7 flex flex-col items-center">
+        <!-- Camera Selection Row -->
+        <div class="w-full flex items-center justify-between gap-3 mb-2 px-1">
+          <label class="text-xs text-slate-400 font-semibold flex items-center gap-1.5">
+            <span>📹 Cámara activa:</span>
+          </label>
+          <select
+            id="enrollCameraSelect"
+            onchange="switchEnrollCamera(this.value)"
+            class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium max-w-[260px] truncate"
+            title="Selecciona qué cámara usar para la captura"
+          >
+            <option value="">Cargando cámaras...</option>
+          </select>
+        </div>
+
         <div class="relative w-full aspect-video bg-black rounded-xl overflow-hidden border border-slate-700 shadow-inner flex items-center justify-center">
           <video id="videoElement" autoplay playsinline muted class="w-full h-full object-cover"></video>
           
@@ -220,25 +244,68 @@
     const thumbnailContainer = document.getElementById("thumbnailContainer");
     const capturedCountText = document.getElementById("capturedCountText");
     const statusBanner = document.getElementById("statusBanner");
+    const enrollCameraSelect = document.getElementById("enrollCameraSelect");
 
     const studentsTableBody = document.getElementById("studentsTableBody");
     const studentCountBadge = document.getElementById("studentCountBadge");
     const searchStudent = document.getElementById("searchStudent");
 
+    let currentStream = null;
+    let currentDeviceId = null;
     let capturedImages = [];
     let allStudents = [];
 
-    // 1. Initialize Webcam
-    async function startCamera() {
+    // 1. Initialize Webcam & Device Enumeration
+    async function loadCameraDevices() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" }
-        });
-        video.srcObject = stream;
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === "videoinput");
+        if (videoDevices.length === 0) {
+          enrollCameraSelect.innerHTML = '<option value="">Cámara por defecto</option>';
+          return;
+        }
+
+        enrollCameraSelect.innerHTML = videoDevices.map((d, idx) => {
+          const isFirst = idx === 0;
+          const label = d.label ? d.label : (isFirst ? "Cámara Integrada" : `Cámara Externa ${idx}`);
+          const isSelected = (currentDeviceId && d.deviceId === currentDeviceId) || (!currentDeviceId && isFirst);
+          return `<option value="${d.deviceId}" ${isSelected ? "selected" : ""}>📹 ${label}</option>`;
+        }).join("");
+      } catch (e) {
+        console.warn("Could not enumerate camera devices:", e);
+      }
+    }
+
+    async function startCamera(deviceId = null) {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
+      try {
+        const constraints = {
+          video: deviceId
+            ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+            : { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }
+        };
+        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = currentStream;
+
+        // Obtain selected track's deviceId
+        const activeTrack = currentStream.getVideoTracks()[0];
+        if (activeTrack && activeTrack.getSettings) {
+          currentDeviceId = activeTrack.getSettings().deviceId || deviceId;
+        }
+
+        await loadCameraDevices();
       } catch (err) {
         showStatus("error", "Could not access webcam: " + err.message);
       }
     }
+
+    async function switchEnrollCamera(deviceId) {
+      if (!deviceId) return;
+      await startCamera(deviceId);
+    }
+
     startCamera();
 
     // 2. Fetch and Render Registered Students Directory

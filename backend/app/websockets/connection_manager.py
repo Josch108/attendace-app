@@ -55,4 +55,18 @@ class ConnectionManager:
             if self._loop and self._loop.is_running():
                 asyncio.run_coroutine_threadsafe(self.broadcast(session_id, message), self._loop)
 
+    async def broadcast_all(self, message: Dict[str, Any]):
+        """Broadcasts to all connected sessions."""
+        for sid in list(self.active_connections.keys()):
+            await self.broadcast(sid, message)
+
+    def broadcast_all_sync(self, message: Dict[str, Any]):
+        """Synchronous wrapper to broadcast to all connected sessions."""
+        try:
+            loop = asyncio.get_running_loop()
+            asyncio.create_task(self.broadcast_all(message))
+        except RuntimeError:
+            if self._loop and self._loop.is_running():
+                asyncio.run_coroutine_threadsafe(self.broadcast_all(message), self._loop)
+
 ws_manager = ConnectionManager()

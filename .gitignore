@@ -56,6 +56,10 @@ data/incoming_photos/*
 *.pt
 *.onnx
 
+# Generated outputs
+outputs/*
+!outputs/.gitkeep
+
 # OS specific
 .DS_Store
 Thumbs.db

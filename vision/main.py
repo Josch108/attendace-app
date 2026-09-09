@@ -6,12 +6,14 @@ OpenCV (Capture) -> YOLOv8 (Person Detection) -> ByteTrack (Temporal Tracking) -
 Features:
 - Standby mode until instructor starts class on dashboard
 - Dynamic hot-reloading of new student face enrollments without restarting
+- Dynamic camera source switching from Dashboard (Built-in vs. External USB Camera)
 - Real-time periodic presence sync so dashboard is always up to date
 - Clean shutdown on Ctrl+C without tracebacks
 """
 import sys
 import argparse
 from pathlib import Path
+from typing import Union
 import cv2
 import numpy as np
 
@@ -33,9 +35,9 @@ COLOR_RED = (0, 0, 220)        # Left / Absent
 COLOR_GRAY = (128, 128, 128)   # Unknown / Unidentified
 COLOR_BLUE = (255, 120, 0)     # Active track bounding box
 
-def draw_overlay(frame: np.ndarray, tracked_people, attendance_manager: AttendanceManager, fps: float, session_id: int = None):
+def draw_overlay(frame: np.ndarray, tracked_people, attendance_manager: AttendanceManager, fps: float, session_id: int = None, camera_source: Union[int, str] = 0):
     """
-    Renders bounding boxes, student badges, track IDs, and top status bar.
+    Renders bounding boxes, student badges, track IDs, active camera indicator, and top status bar.
     """
     h, w = frame.shape[:2]
 
@@ -46,14 +48,15 @@ def draw_overlay(frame: np.ndarray, tracked_people, attendance_manager: Attendan
     cv2.addWeighted(overlay, 0.75, frame, 0.25, 0, frame)
 
     present_count = sum(1 for s in attendance_manager.students_state.values() if s.status == "PRESENT")
+    cam_label = f"Cam {camera_source}" if str(camera_source).isdigit() else f"Cam: {camera_source}"
     if session_id:
-        status_text = f"SESSION #{session_id} [ACTIVE] | FPS: {fps:.1f} | In Frame: {len(tracked_people)} | Present: {present_count}"
+        status_text = f"SESSION #{session_id} [ACTIVE] | {cam_label} | FPS: {fps:.1f} | In Frame: {len(tracked_people)} | Present: {present_count}"
         color_text = (255, 255, 255)
     else:
-        status_text = f"STANDBY: Waiting for instructor to click 'Start Session' on dashboard | FPS: {fps:.1f}"
+        status_text = f"STANDBY: Waiting for instructor | {cam_label} | FPS: {fps:.1f}"
         color_text = (0, 220, 255)
 
-    cv2.putText(frame, status_text, (15, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.60, color_text, 2)
+    cv2.putText(frame, status_text, (15, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.58, color_text, 2)
 
     # 2. Draw person information and tracking badge
     for person in tracked_people:
@@ -83,7 +86,7 @@ def draw_overlay(frame: np.ndarray, tracked_people, attendance_manager: Attendan
 
 def main():
     parser = argparse.ArgumentParser(description="Computer Vision Attendance Pipeline.")
-    parser.add_argument("--source", default=0, help="Webcam index (e.g. 0) or video file path (e.g. sample.mp4)")
+    parser.add_argument("--source", default=0, help="Webcam index (e.g. 0 or 1) or video stream URL")
     parser.add_argument("--conf", type=float, default=0.40, help="YOLO person detection confidence threshold")
     parser.add_argument("--threshold", type=float, default=0.50, help="Cosine facial similarity match threshold")
     parser.add_argument("--timeout", type=float, default=15.0, help="Absence timeout in seconds")
@@ -107,19 +110,30 @@ def main():
         print("[Main] Requesting backend to auto-start session...")
         client.start_session(group_name=args.group)
 
+    # Resolve initial camera source: prefer backend active camera if set
+    initial_source = args.source
+    if str(args.source) in ("0", ""):
+        active_backend_cam = client.fetch_active_camera()
+        if active_backend_cam is not None:
+            initial_source = active_backend_cam
+            print(f"[Main] Initializing with active camera from backend: {initial_source}")
+
+    camera = CameraStream(source=initial_source).start()
+
     def on_attendance_event(evt: dict):
         """Callback for terminal logging and backend event dispatch."""
         etype = evt["event_type"]
         payload = evt.get("payload", {})
         name = payload.get("name", "Unknown")
         is_hb = payload.get("total_seconds") is not None
+        # Tag camera ID on event
+        evt["camera_id"] = str(camera.source)
         # Only log major events or every few heartbeats to keep console readable
         if not is_hb:
-            print(f"[{evt['occurred_at'][11:19]}] >>> EVENT: {etype} | Student: {name} (Track ID: {evt.get('track_id')})")
+            print(f"[{evt['occurred_at'][11:19]}] >>> EVENT: {etype} | Student: {name} (Track: {evt.get('track_id')}, Cam: {camera.source})")
         if client.session_id:
             client.send_event(evt)
 
-    camera = CameraStream(source=args.source).start()
     tracker = PersonTracker(conf_thresh=args.conf)
     recognizer = FaceRecognizer(match_threshold=args.threshold)
     attendance = AttendanceManager(
@@ -148,14 +162,26 @@ def main():
         while True:
             ret, frame = camera.read()
             if not ret:
-                print("[Main] Video stream ended or camera disconnected.")
-                break
+                print(f"[Main] Video stream ended or camera {camera.source} disconnected. Retrying in 1s...")
+                import time
+                time.sleep(1.0)
+                continue
 
             frame_count += 1
 
             # Check for newly enrolled face embeddings dynamically every ~1 second (30 frames)
             if frame_count % 30 == 0:
                 recognizer.reload_if_updated()
+
+                # Dynamic Camera Switching from Dashboard
+                active_backend_cam = client.fetch_active_camera()
+                if active_backend_cam is not None and str(active_backend_cam) != str(camera.source):
+                    print(f"\n[Main] >>> Dashboard selected camera '{active_backend_cam}' (current: '{camera.source}'). Switching...")
+                    switched = camera.switch_source(active_backend_cam)
+                    if switched:
+                        # Re-initialize tracker to adapt to the new viewpoint cleanly
+                        tracker = PersonTracker(conf_thresh=args.conf)
+                        print(f"[Main] Now tracking on camera '{active_backend_cam}'.")
 
             # Sync with backend active session if session-id was not hardcoded
             if args.session_id is None and not args.auto_session:
@@ -214,7 +240,7 @@ def main():
                 attendance.check_timeouts(active_track_ids)
 
             # 4. Render visual overlay
-            draw_overlay(frame, tracked_people, attendance, camera.fps, session_id=client.session_id)
+            draw_overlay(frame, tracked_people, attendance, camera.fps, session_id=client.session_id, camera_source=camera.source)
 
             if video_writer:
                 video_writer.write(frame)

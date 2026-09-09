@@ -1,8 +1,11 @@
 from datetime import datetime, timezone
 from typing import List, Optional
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.db.session import get_db
 from app.models.session import ClassSession
 from app.models.academic import Course, Group, Enrollment
@@ -16,6 +19,7 @@ from app.schemas.session import (
     AttendanceIntervalResponse,
     ManualCorrectionRequest
 )
+from app.services.report_service import report_service
 from app.websockets.connection_manager import ws_manager
 
 router = APIRouter(prefix="/class-sessions", tags=["Class Sessions"])
@@ -160,7 +164,7 @@ def get_class_session(session_id: int, db: Session = Depends(get_db)):
 def end_class_session(session_id: int, db: Session = Depends(get_db)):
     """
     Concludes a class session, closes any open presence intervals,
-    and locks in final attendance percentages.
+    locks in final attendance percentages, and generates an auditable CSV summary in outputs/.
     """
     session = db.query(ClassSession).filter_by(id=session_id).first()
     if not session:
@@ -194,18 +198,75 @@ def end_class_session(session_id: int, db: Session = Depends(get_db)):
 
     db.commit()
 
-    # Broadcast session ended event
+    # Generate CSV Report in outputs/
+    summary_data = get_session_attendance(session_id, db)
+    csv_file_path = report_service.generate_session_csv(
+        session=session,
+        records=records,
+        summary_stats={
+            "duration_seconds": total_duration,
+            "total_enrolled": summary_data.total_enrolled,
+            "present_count": summary_data.present_count,
+            "absent_count": summary_data.absent_count,
+            "average_percentage": summary_data.average_percentage
+        }
+    )
+
+    summary_data.csv_filename = csv_file_path.name
+    summary_data.csv_file_path = str(csv_file_path)
+    summary_data.csv_download_url = f"/api/class-sessions/{session.id}/export-csv"
+
+    # Broadcast session ended event via WebSocket
     ws_manager.broadcast_sync(session.id, {
         "type": "session_ended",
         "occurred_at": now.isoformat(),
         "data": {
             "session_id": session.id,
             "status": "ended",
-            "duration_seconds": total_duration
+            "duration_seconds": total_duration,
+            "csv_filename": csv_file_path.name,
+            "csv_download_url": summary_data.csv_download_url
         }
     })
 
-    return get_session_attendance(session_id, db)
+    return summary_data
+
+
+@router.get("/{session_id}/export-csv")
+def export_session_csv(session_id: int, db: Session = Depends(get_db)):
+    """
+    Exports and downloads the CSV report for a given class session.
+    """
+    session = db.query(ClassSession).filter_by(id=session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Class session not found.")
+
+    outputs_dir = settings.ROOT_DIR / "outputs"
+    matched_files = sorted(outputs_dir.glob(f"attendance_session_{session.id}_*.csv"), reverse=True)
+
+    if matched_files:
+        target_path = matched_files[0]
+    else:
+        # Generate on demand if not existing
+        records = db.query(AttendanceRecord).filter_by(session_id=session.id).all()
+        summary_data = get_session_attendance(session_id, db)
+        target_path = report_service.generate_session_csv(
+            session=session,
+            records=records,
+            summary_stats={
+                "duration_seconds": summary_data.duration_seconds,
+                "total_enrolled": summary_data.total_enrolled,
+                "present_count": summary_data.present_count,
+                "absent_count": summary_data.absent_count,
+                "average_percentage": summary_data.average_percentage
+            }
+        )
+
+    return FileResponse(
+        path=str(target_path),
+        filename=target_path.name,
+        media_type="text/csv"
+    )
 
 
 @router.get("/{session_id}/attendance", response_model=SessionAttendanceSummary)
@@ -269,6 +330,13 @@ def get_session_attendance(session_id: int, db: Session = Depends(get_db)):
 
     avg_pct = round(sum(percentages) / len(percentages), 1) if percentages else 0.0
 
+    # Look for existing generated CSV in outputs/
+    outputs_dir = settings.ROOT_DIR / "outputs"
+    matched_files = sorted(outputs_dir.glob(f"attendance_session_{session.id}_*.csv"), reverse=True)
+    csv_fn = matched_files[0].name if matched_files else None
+    csv_fp = str(matched_files[0]) if matched_files else None
+    csv_dl = f"/api/class-sessions/{session.id}/export-csv" if matched_files else None
+
     return SessionAttendanceSummary(
         session_id=session.id,
         status=session.status,
@@ -279,7 +347,10 @@ def get_session_attendance(session_id: int, db: Session = Depends(get_db)):
         present_count=present_count,
         absent_count=len(records) - present_count,
         average_percentage=avg_pct,
-        records=record_responses
+        records=record_responses,
+        csv_filename=csv_fn,
+        csv_file_path=csv_fp,
+        csv_download_url=csv_dl
     )
 
 

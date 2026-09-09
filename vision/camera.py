@@ -5,7 +5,8 @@ import numpy as np
 
 class CameraStream:
     """
-    Manages video capture from local webcams, video files, or RTSP network streams.
+    Manages video capture from local webcams, external USB cameras, video files, or RTSP network streams.
+    Supports dynamic hot-swapping between cameras without restarting the vision pipeline.
     """
     def __init__(self, source: Union[int, str] = 0, width: int = 1280, height: int = 720):
         # Convert string digit to integer if applicable (e.g. "0")
@@ -35,6 +36,48 @@ class CameraStream:
         actual_h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         print(f"[CameraStream] Video source started at resolution: {actual_w}x{actual_h}")
         return self
+
+    def switch_source(self, new_source: Union[int, str]) -> bool:
+        """
+        Safely switches to a new video capture source without terminating the pipeline.
+        Returns True if the switch succeeded, False otherwise (retaining previous stream).
+        """
+        if isinstance(new_source, str) and new_source.isdigit():
+            new_source = int(new_source)
+
+        if new_source == self.source and self.cap is not None and self.cap.isOpened():
+            return True
+
+        print(f"[CameraStream] Switching camera from source '{self.source}' to '{new_source}'...")
+        old_cap = self.cap
+        try:
+            new_cap = cv2.VideoCapture(new_source)
+            if not new_cap.isOpened():
+                print(f"[CameraStream] Warning: Could not open camera {new_source}. Retaining current source ({self.source}).")
+                return False
+
+            if isinstance(new_source, int):
+                new_cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
+                new_cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+
+            ret, test_frame = new_cap.read()
+            if not ret or test_frame is None:
+                print(f"[CameraStream] Warning: Camera {new_source} opened but failed to read frame. Keeping current source.")
+                new_cap.release()
+                return False
+
+            if old_cap is not None and old_cap.isOpened():
+                old_cap.release()
+
+            self.cap = new_cap
+            self.source = new_source
+            actual_w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            actual_h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            print(f"[CameraStream] Successfully switched to camera '{new_source}' ({actual_w}x{actual_h})")
+            return True
+        except Exception as e:
+            print(f"[CameraStream] Error switching camera source: {e}")
+            return False
 
     def read(self) -> Tuple[bool, np.ndarray]:
         if self.cap is None or not self.cap.isOpened():

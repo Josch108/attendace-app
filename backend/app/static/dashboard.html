@@ -37,8 +37,24 @@
       </div>
     </div>
 
-    <!-- Active Session & Navigation Controls -->
-    <div class="flex items-center gap-3">
+    <!-- Active Session, Camera & Navigation Controls -->
+    <div class="flex items-center flex-wrap gap-2.5">
+      <!-- Active Camera Quick Selector in Header -->
+      <div id="headerCameraBadge" class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-800 border border-slate-700 text-slate-300">
+        <span>📹</span>
+        <span class="text-slate-400 text-[11px] hidden sm:inline">Cam:</span>
+        <select
+          id="headerCameraSelect"
+          onchange="onCameraSelectionChange(this.value)"
+          class="bg-transparent text-slate-200 text-xs font-semibold focus:outline-none cursor-pointer pr-1"
+          title="Seleccionar cámara activa del sistema"
+        >
+          <option value="0">Cámara Integrada (0)</option>
+          <option value="1">Cámara Externa 1 (1)</option>
+        </select>
+      </div>
+
+      <!-- WebSocket status badge -->
       <div id="wsBadge" class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-800 border border-slate-700 text-slate-400">
         <span class="w-2 h-2 rounded-full bg-slate-500"></span>
         <span id="wsStatusText">Standby</span>
@@ -65,6 +81,12 @@
     </div>
   </header>
 
+  <!-- CAMERA SWITCH NOTIFICATION TOAST -->
+  <div id="cameraToast" class="fixed top-16 right-6 z-50 transform transition-all duration-300 translate-y-[-20px] opacity-0 pointer-events-none bg-emerald-950 border border-emerald-700 text-emerald-300 px-4 py-2.5 rounded-xl shadow-2xl text-xs flex items-center gap-2">
+    <span>📹</span>
+    <span id="cameraToastText">Cámara cambiada exitosamente</span>
+  </div>
+
   <!-- MAIN CONTAINER -->
   <main class="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
     <!-- SESSION CONTROL BANNER (Shown when no session is active) -->
@@ -74,31 +96,62 @@
           <span>🚀</span> Ready to Start Class Attendance?
         </h2>
         <p class="text-sm text-slate-400">
-          Select an academic group and click "Start Session" to activate camera tracking and live attendance.
+          Selecciona el grupo académico y la cámara que se usará (integrada o externa) para iniciar la asistencia.
         </p>
       </div>
 
-      <div class="flex items-center gap-3 w-full md:w-auto">
-        <select
-          id="selectGroup"
-          class="px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-48"
-        >
-          <option value="Group A" selected>Group A</option>
-          <option value="Group B">Group B</option>
-          <option value="Group C">Group C</option>
-        </select>
+      <div class="flex flex-wrap items-center gap-3 w-full md:w-auto justify-center md:justify-end">
+        <!-- Academic Group Selector -->
+        <div class="flex flex-col gap-1 w-full sm:w-auto">
+          <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Grupo</label>
+          <select
+            id="selectGroup"
+            class="px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-36"
+          >
+            <option value="Group A" selected>Group A</option>
+            <option value="Group B">Group B</option>
+            <option value="Group C">Group C</option>
+          </select>
+        </div>
 
-        <button
-          onclick="startNewSession()"
-          class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-xl shadow-lg hover:shadow-blue-500/25 transition whitespace-nowrap flex items-center gap-2"
-        >
-          <span>▶️</span> Start Session
-        </button>
+        <!-- Camera Selector -->
+        <div class="flex flex-col gap-1 w-full sm:w-auto">
+          <div class="flex items-center justify-between">
+            <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">📹 Cámara</label>
+            <button
+              type="button"
+              onclick="loadCameras(true)"
+              class="text-blue-400 hover:text-blue-300 text-[10px] font-medium transition ml-2"
+              title="Detectar cámaras conectadas"
+            >
+              🔄 Refrescar
+            </button>
+          </div>
+          <select
+            id="selectCamera"
+            onchange="onCameraSelectionChange(this.value)"
+            class="px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-56"
+          >
+            <option value="0">Cámara Integrada (0)</option>
+            <option value="1">Cámara Externa 1 (1)</option>
+            <option value="2">Cámara Externa 2 (2)</option>
+          </select>
+        </div>
+
+        <!-- Start Button -->
+        <div class="flex items-end pt-5 w-full sm:w-auto">
+          <button
+            onclick="startNewSession()"
+            class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-xl shadow-lg hover:shadow-blue-500/25 transition whitespace-nowrap flex items-center justify-center gap-2 w-full sm:w-auto"
+          >
+            <span>▶️</span> Start Session
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- ACTIVE SESSION BANNER (Shown when a session is active) -->
-    <div id="sessionActiveBanner" class="hidden bg-slate-900/90 border border-emerald-800/40 rounded-2xl p-4 shadow-lg flex items-center justify-between">
+    <div id="sessionActiveBanner" class="hidden bg-slate-900/90 border border-emerald-800/40 rounded-2xl p-4 shadow-lg flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center gap-3">
         <span class="w-3 h-3 rounded-full bg-emerald-400 pulse-green"></span>
         <div>
@@ -106,8 +159,24 @@
           <h3 id="activeSessionTitle" class="text-base font-bold text-white">Session # --</h3>
         </div>
       </div>
-      <div class="text-xs text-slate-400 flex items-center gap-2">
-        <span>Vision camera is reporting attendance in real-time</span>
+
+      <!-- Live Camera Switcher during active session -->
+      <div class="flex items-center flex-wrap gap-3">
+        <div class="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+          <span class="text-slate-400">📹 Cámara en vivo:</span>
+          <select
+            id="activeSessionCameraSelect"
+            onchange="onCameraSelectionChange(this.value)"
+            class="bg-transparent text-emerald-400 font-semibold focus:outline-none cursor-pointer"
+            title="Cambiar de cámara en vivo durante la clase"
+          >
+            <option value="0">Cámara 0</option>
+          </select>
+        </div>
+
+        <div class="text-xs text-slate-400 hidden md:flex items-center gap-1.5">
+          <span>Vision tracking activo en tiempo real</span>
+        </div>
       </div>
     </div>
 
@@ -282,6 +351,8 @@
     let timerInterval = null;
     let activeRecordIdToEdit = null;
     let pollInterval = null;
+    let availableCameras = [];
+    let activeCameraId = "0";
 
     // Helper: Formats an ISO datetime string into the computer's exact local time (e.g. "6:58:13 PM")
     function formatToLocalTime(dateStr) {
@@ -301,7 +372,118 @@
       });
     }
 
-    // 1. WebSocket Lifecycle
+    // 1. Camera Management & Dynamic Selection
+    async function loadCameras(showToast = false) {
+      try {
+        // A. Probe browser-connected devices (MediaDevices API)
+        if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+          try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(d => d.kind === "videoinput");
+            if (videoDevices.length > 0) {
+              const devPayload = videoDevices.map((d, idx) => ({
+                deviceId: d.deviceId,
+                label: d.label || `Cámara ${idx === 0 ? 'Integrada' : 'Externa ' + idx}`,
+                index: idx
+              }));
+              // Inform backend of friendly labels
+              fetch("/api/cameras/register-browser", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ devices: devPayload })
+              }).catch(() => {});
+            }
+          } catch (e) {
+            console.warn("Browser media device enumeration note:", e);
+          }
+        }
+
+        // B. Fetch camera list from backend
+        const res = await fetch("/api/cameras");
+        if (res.ok) {
+          const data = await res.json();
+          availableCameras = data.cameras || [];
+          activeCameraId = data.active_camera || "0";
+          renderCameraSelectors();
+
+          if (showToast) {
+            showCameraToast(`Lista de cámaras actualizada (${availableCameras.length} detectadas)`);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading cameras:", err);
+      }
+    }
+
+    function renderCameraSelectors() {
+      const selectBanner = document.getElementById("selectCamera");
+      const selectHeader = document.getElementById("headerCameraSelect");
+      const selectActive = document.getElementById("activeSessionCameraSelect");
+
+      if (!availableCameras || availableCameras.length === 0) {
+        availableCameras = [
+          { id: "0", name: "Cámara Integrada (0)", type: "builtin" },
+          { id: "1", name: "Cámara Externa 1 (1)", type: "external" }
+        ];
+      }
+
+      const optionsHtml = availableCameras.map(c => {
+        const icon = c.type === "builtin" ? "💻" : "📹";
+        const selected = String(c.id) === String(activeCameraId) ? "selected" : "";
+        return `<option value="${c.id}" ${selected}>${icon} ${c.name}</option>`;
+      }).join("");
+
+      if (selectBanner) selectBanner.innerHTML = optionsHtml;
+      if (selectHeader) selectHeader.innerHTML = optionsHtml;
+      if (selectActive) selectActive.innerHTML = optionsHtml;
+    }
+
+    async function onCameraSelectionChange(newCameraId) {
+      if (!newCameraId) return;
+      activeCameraId = String(newCameraId);
+
+      // Keep all camera dropdowns in sync
+      const selectBanner = document.getElementById("selectCamera");
+      const selectHeader = document.getElementById("headerCameraSelect");
+      const selectActive = document.getElementById("activeSessionCameraSelect");
+      if (selectBanner) selectBanner.value = activeCameraId;
+      if (selectHeader) selectHeader.value = activeCameraId;
+      if (selectActive) selectActive.value = activeCameraId;
+
+      try {
+        const res = await fetch("/api/cameras/active", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ camera_id: activeCameraId })
+        });
+        if (res.ok) {
+          const cam = await res.json();
+          showCameraToast(`Cámara seleccionada: ${cam.name || `Índice ${activeCameraId}`}`);
+          addFeedItem({
+            occurred_at: new Date().toISOString(),
+            data: {
+              event_type: "CAMERA_SWITCHED",
+              student_name: `Cámara activa: ${cam.name}`
+            }
+          });
+        }
+      } catch (e) {
+        console.error("Error updating active camera:", e);
+      }
+    }
+
+    function showCameraToast(text) {
+      const toast = document.getElementById("cameraToast");
+      const toastText = document.getElementById("cameraToastText");
+      if (!toast || !toastText) return;
+      toastText.innerText = text;
+      toast.classList.remove("opacity-0", "translate-y-[-20px]", "pointer-events-none");
+      setTimeout(() => {
+        toast.classList.add("opacity-0", "translate-y-[-20px]", "pointer-events-none");
+      }, 3500);
+    }
+
+    // 2. WebSocket Lifecycle
     function connectWebSocket(sessionId) {
       if (ws) {
         try { ws.close(); } catch (e) {}
@@ -371,10 +553,18 @@
       } else if (msg.type === "event_log") {
         addFeedItem(msg);
 
+      } else if (msg.type === "camera_changed") {
+        const d = msg.data || {};
+        if (d.camera_id && String(d.camera_id) !== String(activeCameraId)) {
+          activeCameraId = String(d.camera_id);
+          renderCameraSelectors();
+          showCameraToast(`Cámara actualizada a: ${d.camera_name || d.camera_id}`);
+        }
+
       } else if (msg.type === "session_ended") {
-        alert("The instructor has concluded this class session.");
-        stopTimer();
-        onSessionEnded();
+        if (activeSession) {
+          onSessionEnded();
+        }
       }
     }
 
@@ -392,11 +582,11 @@
       }
     }
 
-    // 2. Feed Management
+    // 3. Feed Management
     function addFeedItem(msg) {
       const container = document.getElementById("eventFeedContainer");
       const d = msg.data || {};
-      const timeStr = formatToLocalTime(msg.occurred_at);
+      const timeStr = formatToLocalTime(msg.occurred_at || new Date().toISOString());
 
       let icon = "👀";
       if (d.event_type === "STUDENT_PRESENT" || d.event_type === "STUDENT_RETURNED") {
@@ -405,6 +595,8 @@
         icon = "⚠️";
       } else if (d.event_type === "STUDENT_LEFT") {
         icon = "🔴";
+      } else if (d.event_type === "CAMERA_SWITCHED") {
+        icon = "📹";
       }
 
       const div = document.createElement("div");
@@ -434,7 +626,7 @@
       document.getElementById("eventFeedContainer").innerHTML = '<div class="text-xs text-slate-500 italic text-center py-10">Feed cleared. Waiting for new events...</div>';
     }
 
-    // 3. Active Session Check on Page Load
+    // 4. Active Session Check on Page Load
     async function checkExistingActiveSession() {
       try {
         const res = await fetch("/api/class-sessions/active");
@@ -453,9 +645,16 @@
       }
     }
 
-    // 4. Session Operations
+    // 5. Session Operations
     async function startNewSession() {
       const groupName = document.getElementById("selectGroup").value;
+      const chosenCam = document.getElementById("selectCamera").value;
+
+      // Ensure backend knows the desired camera
+      if (chosenCam) {
+        await onCameraSelectionChange(chosenCam);
+      }
+
       try {
         const res = await fetch("/api/class-sessions", {
           method: "POST",
@@ -479,13 +678,34 @@
 
     async function endCurrentSession() {
       if (!activeSession) return;
-      if (!confirm(`Are you sure you want to end session #${activeSession.id}? This will close intervals and lock attendance.`)) return;
+      const currentSessionId = activeSession.id;
+      if (!confirm(`Are you sure you want to end session #${currentSessionId}? This will close intervals, lock attendance, and generate a CSV report in outputs/.`)) return;
 
       try {
-        const res = await fetch(`/api/class-sessions/${activeSession.id}/end`, { method: "POST" });
+        const res = await fetch(`/api/class-sessions/${currentSessionId}/end`, { method: "POST" });
         if (!res.ok) throw new Error("Failed to end session");
         const summary = await res.json();
-        alert(`Session #${activeSession.id} ended. Average attendance: ${summary.average_percentage}%`);
+
+        let alertMsg = `✅ Session #${currentSessionId} ended!\n` +
+          `• Average cohort attendance: ${summary.average_percentage}%\n` +
+          `• Present: ${summary.present_count} / ${summary.total_enrolled}\n` +
+          `• Absent / Left: ${summary.absent_count}`;
+
+        if (summary.csv_filename) {
+          alertMsg += `\n• Report generated: outputs/${summary.csv_filename}`;
+        }
+        alert(alertMsg);
+
+        // Offer immediate CSV download in the browser
+        if (summary.csv_download_url) {
+          const a = document.createElement("a");
+          a.href = summary.csv_download_url;
+          a.download = summary.csv_filename || `attendance_session_${currentSessionId}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+
         onSessionEnded();
       } catch (e) {
         alert("Error ending session: " + e.message);
@@ -540,13 +760,13 @@
       }
     }
 
-    // 5. Render Table & Metrics
+    // 6. Render Table & Metrics
     function renderTable() {
       const q = document.getElementById("searchTable").value.toLowerCase().trim();
       const tbody = document.getElementById("attendanceTbody");
 
       if (!activeSession) {
-        tbody.innerHTML = '<tr><td colspan="7" class="py-12 text-center text-slate-500 italic">No active session. Select group and click "Start Session" to begin tracking.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="py-12 text-center text-slate-500 italic">No active session. Select group, camera, and click "Start Session" to begin tracking.</td></tr>';
         return;
       }
 
@@ -619,7 +839,7 @@
 
     document.getElementById("searchTable").addEventListener("input", renderTable);
 
-    // 6. Timer
+    // 7. Timer
     function startTimer(startDate) {
       stopTimer();
       timerInterval = setInterval(() => {
@@ -636,7 +856,7 @@
       document.getElementById("sessionTimer").innerText = "00:00:00";
     }
 
-    // 7. Manual Correction Modal
+    // 8. Manual Correction Modal
     function openCorrectionModal(recordId, studentName, currentStatus) {
       activeRecordIdToEdit = recordId;
       document.getElementById("modalStudentName").innerText = studentName;
@@ -674,7 +894,8 @@
       }
     }
 
-    // Initialize check on page load
+    // Initialize check and camera detection on page load
+    loadCameras();
     checkExistingActiveSession();
   </script>
 </body>
