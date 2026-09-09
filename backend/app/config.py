@@ -7,6 +7,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(ROOT_DIR / ".env")
 
 class Settings:
+    ROOT_DIR: Path = ROOT_DIR
     PROJECT_NAME: str = os.getenv("PROJECT_NAME", "Smart Attendance System")
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     
@@ -15,9 +16,12 @@ class Settings:
     
     # Local storage directory for student face images
     STORAGE_PATH: Path = (ROOT_DIR / os.getenv("STORAGE_PATH", str(ROOT_DIR / "data" / "students"))).resolve()
+
+    # Output directory for generated CSV reports and exports
+    OUTPUTS_DIR: Path = Path(os.getenv("OUTPUTS_DIR", str(ROOT_DIR / "outputs")))
     
     # Model and attendance policy parameters
-    ABSENCE_TIMEOUT_SECONDS: int = int(os.getenv("ABSENCE_TIMEOUT_SECONDS", "45"))
+    ABSENCE_TIMEOUT_SECONDS: int = int(os.getenv("ABSENCE_TIMEOUT_SECONDS", "15"))
     FACE_MATCH_THRESHOLD: float = float(os.getenv("FACE_MATCH_THRESHOLD", "0.50"))
     FACE_CONFIRMATION_COUNT: int = int(os.getenv("FACE_CONFIRMATION_COUNT", "3"))
     MODEL_VERSION: str = os.getenv("MODEL_VERSION", "insightface/buffalo_l")

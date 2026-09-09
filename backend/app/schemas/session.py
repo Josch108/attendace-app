@@ -58,7 +58,10 @@ class SessionAttendanceSummary(BaseModel):
     absent_count: int = 0
     average_percentage: float = 0.0
     records: List[AttendanceRecordResponse] = []
+    csv_filename: Optional[str] = None
+    csv_file_path: Optional[str] = None
+    csv_download_url: Optional[str] = None
 
 class ManualCorrectionRequest(BaseModel):
-    new_status: str = Field(..., pattern="^(PRESENT|ABSENT|LEFT)$", description="New status")
+    new_status: str = Field(..., pattern="^(PRESENT|ABSENT|LEFT|TEMPORARILY_MISSING)$", description="New status")
     reason: str = Field(..., min_length=3, max_length=500, description="Reason for the manual adjustment")
