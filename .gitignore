@@ -37,21 +37,10 @@ venv/
 ENV/
 
 # Databases
-*.db
 *.sqlite3
 *.sqlite
 
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Project data / Media / Biometrics / Models
-data/students/*
-!data/students/.gitkeep
-data/incoming_photos/*
-!data/incoming_photos/.gitkeep
+# Models
 *.npy
 *.pt
 *.onnx
