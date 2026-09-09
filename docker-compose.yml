@@ -1,0 +1,52 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: attendance-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PROJECT_NAME=Smart Attendance System
+      - ENVIRONMENT=production
+      - DATABASE_URL=sqlite:////app/attendance.db
+      - STORAGE_PATH=/app/data/students
+      - OUTPUTS_DIR=/app/outputs
+      - ABSENCE_TIMEOUT_SECONDS=15
+      - FACE_MATCH_THRESHOLD=0.50
+      - FACE_CONFIRMATION_COUNT=3
+      - MODEL_VERSION=insightface/buffalo_l
+    volumes:
+      - ./data:/app/data
+      - ./attendance.db:/app/attendance.db
+      - ./outputs:/app/outputs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Optional containerized vision pipeline (for network streams or Linux hosts with /dev/video0)
+  # Run explicitly using: docker compose --profile vision up
+  vision:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: attendance-vision
+    profiles:
+      - vision
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - PYTHONPATH=/app/backend:/app
+    volumes:
+      - ./data:/app/data
+      - ./attendance.db:/app/attendance.db
+    # On Linux systems, uncomment device mapping for physical USB/webcam pass-through:
+    # devices:
+    #   - /dev/video0:/dev/video0
+    command: ["python", "vision/main.py", "--source", "0", "--backend-url", "http://backend:8000", "--no-gui"]
