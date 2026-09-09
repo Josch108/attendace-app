@@ -1,112 +1,186 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smart Attendance - Instructor Live Dashboard</title>
+  <title>Smart Attendance — Real-Time Instructor Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
   <style>
-    .pulse-green {
-      animation: pulse-green 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
     }
-    @keyframes pulse-green {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
     }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-4px); }
+    .pulse-dot {
+      animation: pulse-animation 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse-animation {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(0.9); }
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-8px); }
       to { opacity: 1; transform: translateY(0); }
     }
-    .animate-fade-in {
-      animation: fadeIn 0.25s ease-out;
+    .animate-slide-down {
+      animation: slideDown 0.2s ease-out;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(51, 65, 85, 0.6);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(71, 85, 105, 0.8);
     }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
-  <!-- TOP NAVIGATION BAR -->
-  <header class="bg-slate-900 border-b border-slate-800 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30 shadow-md">
-    <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-lg">
-        🎓
-      </div>
-      <div>
-        <h1 class="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-          Smart Attendance <span class="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 font-medium border border-blue-500/30">Instructor Live</span>
-        </h1>
-        <p class="text-xs text-slate-400">Continuous Vision & Biometric Tracking</p>
-      </div>
-    </div>
+<body class="bg-[#090d16] text-slate-200 min-h-screen flex flex-col antialiased selection:bg-indigo-500/20 selection:text-indigo-300">
 
-    <!-- Active Session, Camera & Navigation Controls -->
-    <div class="flex items-center flex-wrap gap-2.5">
-      <!-- Active Camera Quick Selector in Header -->
-      <div id="headerCameraBadge" class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-800 border border-slate-700 text-slate-300">
-        <span>📹</span>
-        <span class="text-slate-400 text-[11px] hidden sm:inline">Cam:</span>
-        <select
-          id="headerCameraSelect"
-          onchange="onCameraSelectionChange(this.value)"
-          class="bg-transparent text-slate-200 text-xs font-semibold focus:outline-none cursor-pointer pr-1"
-          title="Seleccionar cámara activa del sistema"
+  <!-- TOP HEADER / NAVIGATION -->
+  <header class="bg-[#0d1322]/90 backdrop-blur-md border-b border-slate-800/80 px-6 py-3.5 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- Brand & Engine Badge -->
+      <div class="flex items-center gap-3.5">
+        <div class="w-9 h-9 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 3H5a2 2 0 00-2 2v4m0 6v4a2 2 0 002 2h4m6 0h4a2 2 0 002-2v-4m0-6V5a2 2 0 00-2-2h-4"/>
+            <circle cx="12" cy="12" r="3" stroke-width="1.8"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold tracking-tight text-white">Smart Attendance</span>
+            <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium">Vision Engine</span>
+          </div>
+          <p class="text-[11px] text-slate-400">Automated Biometric & Continuous Presence Tracking</p>
+        </div>
+      </div>
+
+      <!-- Controls & Actions -->
+      <div class="flex items-center flex-wrap gap-2.5">
+        
+        <!-- Header Active Camera Selector -->
+        <div id="headerCameraBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs bg-slate-900 border border-slate-800 text-slate-300">
+          <svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+          </svg>
+          <span class="text-slate-400 text-[11px] hidden sm:inline">Camera:</span>
+          <select
+            id="headerCameraSelect"
+            onchange="onCameraSelectionChange(this.value)"
+            class="bg-transparent text-slate-200 text-xs font-medium focus:outline-none cursor-pointer pr-1"
+            title="Select active camera stream"
+          >
+            <option value="0">Built-in Camera (0)</option>
+            <option value="1">External Camera 1 (1)</option>
+          </select>
+        </div>
+
+        <!-- WebSocket Status Indicator -->
+        <div id="wsBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-900 border border-slate-800 text-slate-400">
+          <span class="w-2 h-2 rounded-full bg-slate-500"></span>
+          <span id="wsStatusText">Standby</span>
+        </div>
+
+        <!-- Class Session Timer -->
+        <div id="timerBadge" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-indigo-950/40 border border-indigo-800/40 text-indigo-300">
+          <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" stroke-width="1.8"/>
+            <polyline points="12 6 12 12 16 14" stroke-width="1.8"/>
+          </svg>
+          <span id="sessionTimer">00:00:00</span>
+        </div>
+
+        <!-- Student Enrollment Portal Link -->
+        <a
+          href="/enroll"
+          class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-medium rounded-lg transition flex items-center gap-1.5"
         >
-          <option value="0">Cámara Integrada (0)</option>
-          <option value="1">Cámara Externa 1 (1)</option>
-        </select>
+          <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+          </svg>
+          <span>Enroll Students</span>
+        </a>
+
+        <!-- End Session Button -->
+        <button
+          id="btnEndSession"
+          onclick="endCurrentSession()"
+          class="hidden px-3.5 py-1.5 bg-rose-600/90 hover:bg-rose-500 text-white text-xs font-medium rounded-lg transition shadow-sm flex items-center gap-1.5"
+        >
+          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+            <rect x="6" y="6" width="12" height="12" rx="1.5"/>
+          </svg>
+          <span>End Class</span>
+        </button>
       </div>
-
-      <!-- WebSocket status badge -->
-      <div id="wsBadge" class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-800 border border-slate-700 text-slate-400">
-        <span class="w-2 h-2 rounded-full bg-slate-500"></span>
-        <span id="wsStatusText">Standby</span>
-      </div>
-
-      <div id="timerBadge" class="hidden font-mono text-xs px-3 py-1 rounded-full bg-blue-950/70 border border-blue-700/50 text-blue-300 font-semibold">
-        ⏱️ <span id="sessionTimer">00:00:00</span>
-      </div>
-
-      <a
-        href="/enroll"
-        class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5"
-      >
-        <span>📸</span> Enroll Students
-      </a>
-
-      <button
-        id="btnEndSession"
-        onclick="endCurrentSession()"
-        class="hidden px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold rounded-lg shadow-sm transition flex items-center gap-1.5"
-      >
-        <span>⏹️</span> End Class
-      </button>
     </div>
   </header>
 
-  <!-- CAMERA SWITCH NOTIFICATION TOAST -->
-  <div id="cameraToast" class="fixed top-16 right-6 z-50 transform transition-all duration-300 translate-y-[-20px] opacity-0 pointer-events-none bg-emerald-950 border border-emerald-700 text-emerald-300 px-4 py-2.5 rounded-xl shadow-2xl text-xs flex items-center gap-2">
-    <span>📹</span>
-    <span id="cameraToastText">Cámara cambiada exitosamente</span>
+  <!-- NOTIFICATION TOAST -->
+  <div id="cameraToast" class="fixed top-16 right-6 z-50 transform transition-all duration-300 translate-y-[-16px] opacity-0 pointer-events-none bg-slate-900/95 border border-slate-700 text-slate-200 px-4 py-2.5 rounded-xl shadow-2xl text-xs flex items-center gap-2.5">
+    <svg class="w-4 h-4 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+    </svg>
+    <span id="cameraToastText">System notification</span>
   </div>
 
   <!-- MAIN CONTAINER -->
   <main class="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
-    <!-- SESSION CONTROL BANNER (Shown when no session is active) -->
-    <div id="sessionStartBanner" class="bg-gradient-to-r from-blue-950/40 via-slate-900 to-indigo-950/40 border border-blue-800/40 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+
+    <!-- SESSION SETUP BANNER (When inactive) -->
+    <div id="sessionStartBanner" class="bg-[#0d1322] border border-slate-800 rounded-xl p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
       <div class="space-y-1 text-center md:text-left">
-        <h2 class="text-xl font-bold text-white flex items-center gap-2 justify-center md:justify-start">
-          <span>🚀</span> Ready to Start Class Attendance?
+        <h2 class="text-base font-semibold text-white tracking-tight flex items-center gap-2 justify-center md:justify-start">
+          <span>Session Setup</span>
         </h2>
-        <p class="text-sm text-slate-400">
-          Selecciona el grupo académico y la cámara que se usará (integrada o externa) para iniciar la asistencia.
+        <p class="text-xs text-slate-400 max-w-xl">
+          Select an academic cohort and video capture source (built-in or external USB camera) to initiate real-time biometric tracking.
         </p>
       </div>
 
       <div class="flex flex-wrap items-center gap-3 w-full md:w-auto justify-center md:justify-end">
-        <!-- Academic Group Selector -->
+        <!-- Cohort / Group Selector -->
         <div class="flex flex-col gap-1 w-full sm:w-auto">
-          <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Grupo</label>
+          <label class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Cohort</label>
           <select
             id="selectGroup"
-            class="px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-36"
+            class="px-3 py-2 bg-[#080c14] border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 w-full sm:w-36 transition"
           >
             <option value="Group A" selected>Group A</option>
             <option value="Group B">Group B</option>
@@ -117,152 +191,181 @@
         <!-- Camera Selector -->
         <div class="flex flex-col gap-1 w-full sm:w-auto">
           <div class="flex items-center justify-between">
-            <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">📹 Cámara</label>
+            <label class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Video Source</label>
             <button
               type="button"
               onclick="loadCameras(true)"
-              class="text-blue-400 hover:text-blue-300 text-[10px] font-medium transition ml-2"
-              title="Detectar cámaras conectadas"
+              class="text-indigo-400 hover:text-indigo-300 text-[10px] font-medium transition ml-2 flex items-center gap-1"
+              title="Rescan connected video devices"
             >
-              🔄 Refrescar
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              <span>Refresh</span>
             </button>
           </div>
           <select
             id="selectCamera"
             onchange="onCameraSelectionChange(this.value)"
-            class="px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-56"
+            class="px-3 py-2 bg-[#080c14] border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 w-full sm:w-60 transition"
           >
-            <option value="0">Cámara Integrada (0)</option>
-            <option value="1">Cámara Externa 1 (1)</option>
-            <option value="2">Cámara Externa 2 (2)</option>
+            <option value="0">Built-in Camera (Index 0)</option>
+            <option value="1">External Camera 1 (Index 1)</option>
           </select>
         </div>
 
         <!-- Start Button -->
-        <div class="flex items-end pt-5 w-full sm:w-auto">
+        <div class="flex items-end pt-4 sm:pt-5 w-full sm:w-auto">
           <button
             onclick="startNewSession()"
-            class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-xl shadow-lg hover:shadow-blue-500/25 transition whitespace-nowrap flex items-center justify-center gap-2 w-full sm:w-auto"
+            class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs rounded-lg shadow-sm transition flex items-center justify-center gap-2 w-full sm:w-auto"
           >
-            <span>▶️</span> Start Session
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            <span>Start Session</span>
           </button>
         </div>
       </div>
     </div>
 
-    <!-- ACTIVE SESSION BANNER (Shown when a session is active) -->
-    <div id="sessionActiveBanner" class="hidden bg-slate-900/90 border border-emerald-800/40 rounded-2xl p-4 shadow-lg flex flex-wrap items-center justify-between gap-4">
+    <!-- SESSION ACTIVE BANNER (When active) -->
+    <div id="sessionActiveBanner" class="hidden bg-[#0d1322] border border-emerald-900/40 rounded-xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center gap-3">
-        <span class="w-3 h-3 rounded-full bg-emerald-400 pulse-green"></span>
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-dot"></span>
         <div>
-          <span class="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Class Session Active</span>
-          <h3 id="activeSessionTitle" class="text-base font-bold text-white">Session # --</h3>
+          <span class="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider font-mono">Session in Progress</span>
+          <h3 id="activeSessionTitle" class="text-sm font-semibold text-white">Active Session</h3>
         </div>
       </div>
 
-      <!-- Live Camera Switcher during active session -->
+      <!-- Live Camera Switcher during active class -->
       <div class="flex items-center flex-wrap gap-3">
-        <div class="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
-          <span class="text-slate-400">📹 Cámara en vivo:</span>
+        <div class="flex items-center gap-2 bg-[#080c14] px-3 py-1.5 rounded-lg border border-slate-800 text-xs">
+          <span class="text-slate-400 text-[11px]">Active Camera:</span>
           <select
             id="activeSessionCameraSelect"
             onchange="onCameraSelectionChange(this.value)"
-            class="bg-transparent text-emerald-400 font-semibold focus:outline-none cursor-pointer"
-            title="Cambiar de cámara en vivo durante la clase"
+            class="bg-transparent text-emerald-400 font-medium focus:outline-none cursor-pointer text-xs"
+            title="Switch active camera stream during live session"
           >
-            <option value="0">Cámara 0</option>
+            <option value="0">Camera 0</option>
           </select>
         </div>
-
-        <div class="text-xs text-slate-400 hidden md:flex items-center gap-1.5">
-          <span>Vision tracking activo en tiempo real</span>
+        <div class="text-[11px] text-slate-400 hidden md:flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          <span>Live biometric tracking active</span>
         </div>
       </div>
     </div>
 
-    <!-- METRICS CARDS (Real-Time Aggregates) -->
+    <!-- METRICS CARDS -->
     <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <!-- Card 1: Enrolled -->
-      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4.5 shadow-sm">
-        <div class="flex items-center justify-between text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
+      
+      <!-- Card 1: Total Enrolled -->
+      <div class="bg-[#0d1322] border border-slate-800/80 rounded-xl p-4 shadow-sm">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1.5">
           <span>Enrolled</span>
-          <span class="text-base">📋</span>
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+            <circle cx="9" cy="7" r="4" stroke-width="1.8"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M23 21v-2a4 4 0 00-3-3.87"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 3.13a4 4 0 010 7.75"/>
+          </svg>
         </div>
-        <div class="text-3xl font-extrabold text-white" id="cardEnrolled">0</div>
-        <div class="text-[11px] text-slate-500 mt-1">Students in cohort</div>
+        <div class="text-2xl font-bold font-mono text-white" id="cardEnrolled">0</div>
+        <div class="text-[11px] text-slate-500 mt-1">Total registered students</div>
       </div>
 
       <!-- Card 2: Present Now -->
-      <div class="bg-slate-900/80 border border-emerald-900/40 rounded-2xl p-4.5 shadow-sm relative overflow-hidden">
-        <div class="flex items-center justify-between text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2">
+      <div class="bg-[#0d1322] border border-emerald-900/30 rounded-xl p-4 shadow-sm">
+        <div class="flex items-center justify-between text-emerald-400 text-xs font-medium mb-1.5">
           <span class="flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-green"></span>
-            Present Now
+            <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+            Present
           </span>
-          <span class="text-base">👤</span>
+          <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+            <circle cx="8.5" cy="7" r="4" stroke-width="1.8"/>
+            <polyline points="17 11 19 13 23 9" stroke-width="1.8"/>
+          </svg>
         </div>
-        <div class="text-3xl font-extrabold text-emerald-400" id="cardPresent">0</div>
-        <div class="text-[11px] text-slate-500 mt-1">Inside classroom</div>
+        <div class="text-2xl font-bold font-mono text-emerald-400" id="cardPresent">0</div>
+        <div class="text-[11px] text-slate-500 mt-1">Observed inside classroom</div>
       </div>
 
-      <!-- Card 3: Missing / Left -->
-      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4.5 shadow-sm">
-        <div class="flex items-center justify-between text-amber-400 text-xs font-semibold uppercase tracking-wider mb-2">
-          <span>Absent / Left</span>
-          <span class="text-base">🚪</span>
+      <!-- Card 3: Absent / Left -->
+      <div class="bg-[#0d1322] border border-slate-800/80 rounded-xl p-4 shadow-sm">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1.5">
+          <span>Absent</span>
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+            <circle cx="8.5" cy="7" r="4" stroke-width="1.8"/>
+            <line x1="17" y1="11" x2="23" y2="11" stroke-width="1.8"/>
+          </svg>
         </div>
-        <div class="text-3xl font-extrabold text-amber-400" id="cardAbsent">0</div>
-        <div class="text-[11px] text-slate-500 mt-1">Outside or not seen</div>
+        <div class="text-2xl font-bold font-mono text-slate-300" id="cardAbsent">0</div>
+        <div class="text-[11px] text-slate-500 mt-1">Unseen or departed past timeout</div>
       </div>
 
       <!-- Card 4: Attendance Rate -->
-      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4.5 shadow-sm">
-        <div class="flex items-center justify-between text-indigo-400 text-xs font-semibold uppercase tracking-wider mb-2">
-          <span>Avg. Attendance</span>
-          <span class="text-base">📊</span>
+      <div class="bg-[#0d1322] border border-slate-800/80 rounded-xl p-4 shadow-sm">
+        <div class="flex items-center justify-between text-indigo-400 text-xs font-medium mb-1.5">
+          <span>Average Attendance</span>
+          <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M18 20V10M12 20V4M6 20v-6"/>
+          </svg>
         </div>
-        <div class="text-3xl font-extrabold text-indigo-300" id="cardPercentage">0%</div>
-        <div class="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+        <div class="text-2xl font-bold font-mono text-indigo-300" id="cardPercentage">0%</div>
+        <div class="w-full bg-slate-800/80 h-1.5 rounded-full mt-2 overflow-hidden">
           <div id="cardProgressBar" class="bg-indigo-500 h-full w-0 transition-all duration-500"></div>
         </div>
       </div>
     </section>
 
-    <!-- TWO-COLUMN WORKSPACE: ATTENDANCE TABLE & LIVE FEED -->
+    <!-- TWO-COLUMN WORKSPACE: ATTENDANCE TABLE & REAL-TIME ACTIVITY FEED -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
       <!-- Left Column: Live Attendance Table (8 cols) -->
-      <div class="lg:col-span-8 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
-          <h3 class="font-bold text-white text-base flex items-center gap-2">
-            <span>📝</span> Live Attendance List
-          </h3>
-          <div class="flex items-center gap-2">
+      <div class="lg:col-span-8 bg-[#0d1322] border border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+          <div>
+            <h3 class="font-semibold text-white text-sm tracking-tight">Live Attendance Roster</h3>
+            <p class="text-[11px] text-slate-400">Continuous presence and duration breakdown per student</p>
+          </div>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-500">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8" stroke-width="2"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65" stroke-width="2"/>
+              </svg>
+            </div>
             <input
               type="text"
               id="searchTable"
               placeholder="Search student..."
-              class="px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-48"
+              class="pl-8 pr-3 py-1.5 bg-[#080c14] border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 w-full sm:w-52 transition"
             />
           </div>
         </div>
 
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs">
-            <thead class="bg-slate-950/80 text-slate-400 uppercase tracking-wider text-[11px]">
+            <thead class="bg-[#080c14]/80 text-slate-400 uppercase tracking-wider text-[10px] font-semibold border-b border-slate-800/60">
               <tr>
-                <th class="py-3 px-3.5 rounded-l-lg">Student</th>
-                <th class="py-3 px-3.5">Status</th>
-                <th class="py-3 px-3.5">First Seen</th>
-                <th class="py-3 px-3.5">Last Seen</th>
-                <th class="py-3 px-3.5">Time Present</th>
-                <th class="py-3 px-3.5">% Class</th>
-                <th class="py-3 px-3.5 text-right rounded-r-lg">Action</th>
+                <th class="py-2.5 px-3 rounded-l-lg">Student</th>
+                <th class="py-2.5 px-3">Status</th>
+                <th class="py-2.5 px-3">First Seen</th>
+                <th class="py-2.5 px-3">Last Seen</th>
+                <th class="py-2.5 px-3">Time Present</th>
+                <th class="py-2.5 px-3">% Class</th>
+                <th class="py-2.5 px-3 text-right rounded-r-lg">Action</th>
               </tr>
             </thead>
-            <tbody id="attendanceTbody" class="divide-y divide-slate-800/60 font-medium">
+            <tbody id="attendanceTbody" class="divide-y divide-slate-800/50">
               <tr>
-                <td colspan="7" class="py-12 text-center text-slate-500 italic">
-                  Checking active sessions...
+                <td colspan="7" class="py-12 text-center text-slate-500 font-normal">
+                  No active session. Select cohort, camera, and click "Start Session".
                 </td>
               </tr>
             </tbody>
@@ -271,45 +374,54 @@
       </div>
 
       <!-- Right Column: Real-Time Event Feed (4 cols) -->
-      <div class="lg:col-span-4 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between space-y-4">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
-          <h3 class="font-bold text-white text-base flex items-center gap-2">
-            <span>⚡</span> Real-Time Activity Feed
-          </h3>
-          <span class="text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded">Live Stream</span>
+      <div class="lg:col-span-4 bg-[#0d1322] border border-slate-800 rounded-xl p-5 shadow-sm flex flex-col justify-between space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
+          <div class="flex items-center gap-2">
+            <h3 class="font-semibold text-white text-sm tracking-tight">Event Stream</h3>
+            <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+          </div>
+          <button
+            onclick="clearEventFeed()"
+            class="text-[11px] text-slate-400 hover:text-slate-200 transition font-medium"
+          >
+            Clear
+          </button>
         </div>
 
-        <div id="eventFeedContainer" class="flex-1 overflow-y-auto space-y-2.5 max-h-[480px] pr-1">
-          <div class="text-xs text-slate-500 italic text-center py-10">
-            Waiting for vision tracking events...
+        <div id="eventFeedContainer" class="flex-1 overflow-y-auto space-y-2 max-h-[480px] pr-1">
+          <div class="text-xs text-slate-500 text-center py-12">
+            Waiting for computer vision events...
           </div>
         </div>
 
-        <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
-          <span>Connected via WebSocket</span>
-          <button onclick="clearEventFeed()" class="hover:text-slate-300">Clear Feed</button>
+        <div class="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-500">
+          <span>WebSocket synchronized</span>
+          <span id="eventCountIndicator" class="font-mono text-[10px]">0 events</span>
         </div>
       </div>
     </div>
   </main>
 
   <!-- MANUAL CORRECTION MODAL -->
-  <div id="correctionModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-        <h3 class="text-lg font-bold text-white">Manual Attendance Override</h3>
-        <button onclick="closeCorrectionModal()" class="text-slate-400 hover:text-white text-xl">&times;</button>
+  <div id="correctionModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#0d1322] border border-slate-700/80 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-slide-down">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-sm font-semibold text-white">Manual Attendance Override</h3>
+        <button onclick="closeCorrectionModal()" class="text-slate-400 hover:text-white text-base leading-none">&times;</button>
       </div>
 
-      <div class="space-y-3 text-sm">
+      <div class="space-y-3.5 text-xs">
         <div>
-          <span class="text-xs text-slate-400 uppercase">Student:</span>
-          <p id="modalStudentName" class="font-semibold text-white text-base"></p>
+          <span class="text-[10px] text-slate-400 uppercase font-medium">Student:</span>
+          <p id="modalStudentName" class="font-medium text-white text-sm mt-0.5"></p>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Set Status</label>
-          <select id="modalStatusSelect" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <label class="block text-[11px] font-medium text-slate-300 uppercase mb-1">Set Status</label>
+          <select
+            id="modalStatusSelect"
+            class="w-full px-3 py-2 bg-[#080c14] border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-indigo-500"
+          >
             <option value="PRESENT">PRESENT</option>
             <option value="ABSENT">ABSENT</option>
             <option value="LEFT">LEFT</option>
@@ -317,26 +429,26 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Auditable Justification Reason</label>
+          <label class="block text-[11px] font-medium text-slate-300 uppercase mb-1">Auditable Justification Reason</label>
           <textarea
             id="modalReasonText"
             rows="3"
-            placeholder="e.g. Student was present participating in laboratory"
-            class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
+            placeholder="Specify reason for manual adjustment..."
+            class="w-full px-3 py-2 bg-[#080c14] border border-slate-700 rounded-lg text-white text-xs placeholder-slate-500 focus:outline-none focus:border-indigo-500"
           ></textarea>
         </div>
       </div>
 
-      <div class="flex items-center justify-end gap-2 pt-2">
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800/80">
         <button
           onclick="closeCorrectionModal()"
-          class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition"
+          class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition"
         >
           Cancel
         </button>
         <button
           onclick="submitManualCorrection()"
-          class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg shadow-md transition"
+          class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg transition shadow-sm"
         >
           Save Override
         </button>
@@ -353,29 +465,28 @@
     let pollInterval = null;
     let availableCameras = [];
     let activeCameraId = "0";
+    let totalEventsLogged = 0;
 
-    // Helper: Formats an ISO datetime string into the computer's exact local time (e.g. "6:58:13 PM")
+    // Helper: Formats an ISO datetime string into exact local time (e.g. "18:58:13")
     function formatToLocalTime(dateStr) {
       if (!dateStr) return "--";
       let s = String(dateStr).trim();
-      // If the ISO string lacks timezone information, treat it as UTC
       if (!s.endsWith("Z") && !s.includes("+") && !s.match(/-\d{2}:\d{2}$/)) {
         s += "Z";
       }
       const d = new Date(s);
       if (isNaN(d.getTime())) return "--";
       return d.toLocaleTimeString([], {
-        hour: "numeric",
+        hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
-        hour12: true
+        hour12: false
       });
     }
 
-    // 1. Camera Management & Dynamic Selection
+    // 1. Camera Management & Device Sync
     async function loadCameras(showToast = false) {
       try {
-        // A. Probe browser-connected devices (MediaDevices API)
         if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
           try {
             const devices = await navigator.mediaDevices.enumerateDevices();
@@ -383,10 +494,9 @@
             if (videoDevices.length > 0) {
               const devPayload = videoDevices.map((d, idx) => ({
                 deviceId: d.deviceId,
-                label: d.label || `Cámara ${idx === 0 ? 'Integrada' : 'Externa ' + idx}`,
+                label: d.label || `Camera ${idx === 0 ? 'Built-in' : 'External ' + idx}`,
                 index: idx
               }));
-              // Inform backend of friendly labels
               fetch("/api/cameras/register-browser", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -394,11 +504,10 @@
               }).catch(() => {});
             }
           } catch (e) {
-            console.warn("Browser media device enumeration note:", e);
+            console.warn("MediaDevice note:", e);
           }
         }
 
-        // B. Fetch camera list from backend
         const res = await fetch("/api/cameras");
         if (res.ok) {
           const data = await res.json();
@@ -407,7 +516,7 @@
           renderCameraSelectors();
 
           if (showToast) {
-            showCameraToast(`Lista de cámaras actualizada (${availableCameras.length} detectadas)`);
+            showCameraToast(`Devices updated (${availableCameras.length} detected)`);
           }
         }
       } catch (err) {
@@ -422,15 +531,14 @@
 
       if (!availableCameras || availableCameras.length === 0) {
         availableCameras = [
-          { id: "0", name: "Cámara Integrada (0)", type: "builtin" },
-          { id: "1", name: "Cámara Externa 1 (1)", type: "external" }
+          { id: "0", name: "Built-in Camera (Index 0)", type: "builtin" },
+          { id: "1", name: "External Camera 1 (Index 1)", type: "external" }
         ];
       }
 
       const optionsHtml = availableCameras.map(c => {
-        const icon = c.type === "builtin" ? "💻" : "📹";
         const selected = String(c.id) === String(activeCameraId) ? "selected" : "";
-        return `<option value="${c.id}" ${selected}>${icon} ${c.name}</option>`;
+        return `<option value="${c.id}" ${selected}>${c.name}</option>`;
       }).join("");
 
       if (selectBanner) selectBanner.innerHTML = optionsHtml;
@@ -442,7 +550,6 @@
       if (!newCameraId) return;
       activeCameraId = String(newCameraId);
 
-      // Keep all camera dropdowns in sync
       const selectBanner = document.getElementById("selectCamera");
       const selectHeader = document.getElementById("headerCameraSelect");
       const selectActive = document.getElementById("activeSessionCameraSelect");
@@ -458,12 +565,12 @@
         });
         if (res.ok) {
           const cam = await res.json();
-          showCameraToast(`Cámara seleccionada: ${cam.name || `Índice ${activeCameraId}`}`);
+          showCameraToast(`Camera selected: ${cam.name || `Index ${activeCameraId}`}`);
           addFeedItem({
             occurred_at: new Date().toISOString(),
             data: {
               event_type: "CAMERA_SWITCHED",
-              student_name: `Cámara activa: ${cam.name}`
+              student_name: `Active camera: ${cam.name}`
             }
           });
         }
@@ -477,13 +584,13 @@
       const toastText = document.getElementById("cameraToastText");
       if (!toast || !toastText) return;
       toastText.innerText = text;
-      toast.classList.remove("opacity-0", "translate-y-[-20px]", "pointer-events-none");
+      toast.classList.remove("opacity-0", "translate-y-[-16px]", "pointer-events-none");
       setTimeout(() => {
-        toast.classList.add("opacity-0", "translate-y-[-20px]", "pointer-events-none");
-      }, 3500);
+        toast.classList.add("opacity-0", "translate-y-[-16px]", "pointer-events-none");
+      }, 3200);
     }
 
-    // 2. WebSocket Lifecycle
+    // 2. WebSocket Connection Lifecycle
     function connectWebSocket(sessionId) {
       if (ws) {
         try { ws.close(); } catch (e) {}
@@ -491,7 +598,6 @@
 
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const wsUrl = `${protocol}//${window.location.host}/ws/class-sessions/${sessionId}`;
-      console.log(`Connecting WebSocket to: ${wsUrl}`);
 
       ws = new WebSocket(wsUrl);
 
@@ -558,7 +664,7 @@
         if (d.camera_id && String(d.camera_id) !== String(activeCameraId)) {
           activeCameraId = String(d.camera_id);
           renderCameraSelectors();
-          showCameraToast(`Cámara actualizada a: ${d.camera_name || d.camera_id}`);
+          showCameraToast(`Camera updated to: ${d.camera_name || d.camera_id}`);
         }
 
       } else if (msg.type === "session_ended") {
@@ -571,44 +677,50 @@
     function updateWsBadge(status, text) {
       const badge = document.getElementById("wsBadge");
       if (status === "connected") {
-        badge.className = "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-950/70 border border-emerald-700/50 text-emerald-300";
-        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 pulse-green"></span><span>${text}</span>`;
+        badge.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-950/60 border border-emerald-800/60 text-emerald-300";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span><span>${text}</span>`;
       } else if (status === "disconnected") {
-        badge.className = "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-rose-950/70 border border-rose-700/50 text-rose-300";
+        badge.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-950/60 border border-rose-800/60 text-rose-300";
         badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400"></span><span>${text}</span>`;
       } else {
-        badge.className = "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-800 border border-slate-700 text-slate-400";
+        badge.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-900 border border-slate-800 text-slate-400";
         badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-500"></span><span>${text}</span>`;
       }
     }
 
-    // 3. Feed Management
+    // 3. Activity Feed Management
     function addFeedItem(msg) {
       const container = document.getElementById("eventFeedContainer");
       const d = msg.data || {};
       const timeStr = formatToLocalTime(msg.occurred_at || new Date().toISOString());
 
-      let icon = "👀";
+      let iconSvg = `<svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/></svg>`;
+      let borderAccent = "border-slate-800/80";
+
       if (d.event_type === "STUDENT_PRESENT" || d.event_type === "STUDENT_RETURNED") {
-        icon = "🟢";
+        iconSvg = `<svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>`;
+        borderAccent = "border-emerald-900/30";
       } else if (d.event_type === "STUDENT_TEMPORARILY_MISSING") {
-        icon = "⚠️";
+        iconSvg = `<svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="12" stroke-width="2"/><line x1="12" y1="16" x2="12.01" y2="16" stroke-width="2"/></svg>`;
+        borderAccent = "border-amber-900/30";
       } else if (d.event_type === "STUDENT_LEFT") {
-        icon = "🔴";
+        iconSvg = `<svg class="w-3.5 h-3.5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18" stroke-width="2"/><line x1="6" y1="6" x2="18" y2="18" stroke-width="2"/></svg>`;
+        borderAccent = "border-rose-900/30";
       } else if (d.event_type === "CAMERA_SWITCHED") {
-        icon = "📹";
+        iconSvg = `<svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>`;
+        borderAccent = "border-indigo-900/40";
       }
 
       const div = document.createElement("div");
-      div.className = `p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 text-xs flex items-start gap-2.5 transition animate-fade-in`;
+      div.className = `p-2.5 rounded-lg border ${borderAccent} bg-[#080c14] text-xs flex items-start gap-2.5 transition animate-slide-down`;
       div.innerHTML = `
-        <span class="text-base">${icon}</span>
+        <div class="mt-0.5 flex-shrink-0">${iconSvg}</div>
         <div class="flex-1 min-w-0">
-          <div class="flex items-center justify-between">
-            <span class="font-semibold text-slate-200 truncate">${d.student_name || "Unknown Person"}</span>
-            <span class="text-[10px] text-slate-500 font-mono">${timeStr}</span>
+          <div class="flex items-center justify-between gap-1">
+            <span class="font-medium text-slate-200 truncate text-[12px]">${d.student_name || "Unidentified Person"}</span>
+            <span class="text-[10px] text-slate-500 font-mono flex-shrink-0">${timeStr}</span>
           </div>
-          <p class="text-[11px] text-slate-400 mt-0.5 font-mono">${d.event_type} ${d.track_id ? `(Track #${d.track_id})` : ''}</p>
+          <p class="text-[10px] text-slate-400 mt-0.5 font-mono">${d.event_type} ${d.track_id ? `(Track #${d.track_id})` : ''}</p>
         </div>
       `;
 
@@ -616,24 +728,27 @@
         container.innerHTML = "";
       }
       container.prepend(div);
+      totalEventsLogged++;
+      document.getElementById("eventCountIndicator").innerText = `${totalEventsLogged} events`;
 
-      if (container.children.length > 30) {
+      if (container.children.length > 40) {
         container.removeChild(container.lastChild);
       }
     }
 
     function clearEventFeed() {
-      document.getElementById("eventFeedContainer").innerHTML = '<div class="text-xs text-slate-500 italic text-center py-10">Feed cleared. Waiting for new events...</div>';
+      totalEventsLogged = 0;
+      document.getElementById("eventCountIndicator").innerText = "0 events";
+      document.getElementById("eventFeedContainer").innerHTML = '<div class="text-xs text-slate-500 text-center py-12">Feed cleared. Waiting for events...</div>';
     }
 
-    // 4. Active Session Check on Page Load
+    // 4. Session State Check on Page Load
     async function checkExistingActiveSession() {
       try {
         const res = await fetch("/api/class-sessions/active");
         if (!res.ok) return;
         const session = await res.json();
         if (session && session.id && session.status === "active") {
-          console.log("Found existing active session:", session);
           activeSession = session;
           onSessionActivated(session);
         } else {
@@ -645,12 +760,11 @@
       }
     }
 
-    // 5. Session Operations
+    // 5. Session Actions
     async function startNewSession() {
       const groupName = document.getElementById("selectGroup").value;
       const chosenCam = document.getElementById("selectCamera").value;
 
-      // Ensure backend knows the desired camera
       if (chosenCam) {
         await onCameraSelectionChange(chosenCam);
       }
@@ -663,7 +777,6 @@
         });
         const data = await res.json();
         if (res.status === 409) {
-          // Already active, sync with it
           await checkExistingActiveSession();
           return;
         }
@@ -679,24 +792,23 @@
     async function endCurrentSession() {
       if (!activeSession) return;
       const currentSessionId = activeSession.id;
-      if (!confirm(`Are you sure you want to end session #${currentSessionId}? This will close intervals, lock attendance, and generate a CSV report in outputs/.`)) return;
+      if (!confirm(`Are you sure you want to end session #${currentSessionId}? This will close intervals, finalize records, and generate a CSV report.`)) return;
 
       try {
         const res = await fetch(`/api/class-sessions/${currentSessionId}/end`, { method: "POST" });
         if (!res.ok) throw new Error("Failed to end session");
         const summary = await res.json();
 
-        let alertMsg = `✅ Session #${currentSessionId} ended!\n` +
+        let alertMsg = `Session #${currentSessionId} concluded.\n` +
           `• Average cohort attendance: ${summary.average_percentage}%\n` +
           `• Present: ${summary.present_count} / ${summary.total_enrolled}\n` +
           `• Absent / Left: ${summary.absent_count}`;
 
         if (summary.csv_filename) {
-          alertMsg += `\n• Report generated: outputs/${summary.csv_filename}`;
+          alertMsg += `\n• Report saved to: outputs/${summary.csv_filename}`;
         }
         alert(alertMsg);
 
-        // Offer immediate CSV download in the browser
         if (summary.csv_download_url) {
           const a = document.createElement("a");
           a.href = summary.csv_download_url;
@@ -715,15 +827,15 @@
     function onSessionActivated(session) {
       document.getElementById("sessionStartBanner").classList.add("hidden");
       document.getElementById("sessionActiveBanner").classList.remove("hidden");
-      document.getElementById("activeSessionTitle").innerText = `Session #${session.id} - ${session.group_name}`;
+      document.getElementById("activeSessionTitle").innerText = `Session #${session.id} — ${session.group_name}`;
       document.getElementById("btnEndSession").classList.remove("hidden");
       document.getElementById("timerBadge").classList.remove("hidden");
+      document.getElementById("timerBadge").classList.add("flex");
 
       connectWebSocket(session.id);
       loadSessionAttendance(session.id);
       startTimer(new Date(session.started_at));
 
-      // Periodic safety poll every 3 seconds in case of missed WebSocket frames
       if (pollInterval) clearInterval(pollInterval);
       pollInterval = setInterval(() => {
         if (activeSession) loadSessionAttendance(activeSession.id);
@@ -738,6 +850,7 @@
       document.getElementById("sessionActiveBanner").classList.add("hidden");
       document.getElementById("btnEndSession").classList.add("hidden");
       document.getElementById("timerBadge").classList.add("hidden");
+      document.getElementById("timerBadge").classList.remove("flex");
       updateWsBadge("offline", "Standby");
       if (ws) {
         try { ws.close(); } catch(e){}
@@ -750,7 +863,7 @@
     async function loadSessionAttendance(sessionId) {
       try {
         const res = await fetch(`/api/class-sessions/${sessionId}/attendance`);
-        if (!res.ok) throw new Error("Could not load attendance data");
+        if (!res.ok) throw new Error("Error loading attendance data");
         const data = await res.json();
         attendanceRecords = data.records || [];
         renderTable();
@@ -760,13 +873,13 @@
       }
     }
 
-    // 6. Render Table & Metrics
+    // 6. Render Attendance Table & Metrics
     function renderTable() {
       const q = document.getElementById("searchTable").value.toLowerCase().trim();
       const tbody = document.getElementById("attendanceTbody");
 
       if (!activeSession) {
-        tbody.innerHTML = '<tr><td colspan="7" class="py-12 text-center text-slate-500 italic">No active session. Select group, camera, and click "Start Session" to begin tracking.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="py-12 text-center text-slate-500 font-normal">No active session. Select cohort, camera, and click "Start Session".</td></tr>';
         return;
       }
 
@@ -775,15 +888,21 @@
       );
 
       if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-slate-500 italic">No matching students found in this group.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-slate-500">No matching students found in this cohort.</td></tr>';
         return;
       }
 
       tbody.innerHTML = filtered.map(r => {
-        let badgeClass = "bg-slate-800 text-slate-400 border-slate-700";
-        if (r.status === "PRESENT") badgeClass = "bg-emerald-950/80 text-emerald-300 border-emerald-700/60";
-        else if (r.status === "TEMPORARILY_MISSING") badgeClass = "bg-amber-950/80 text-amber-300 border-amber-700/60";
-        else if (r.status === "LEFT") badgeClass = "bg-rose-950/80 text-rose-300 border-rose-700/60";
+        let badgeHtml = '';
+        if (r.status === "PRESENT") {
+          badgeHtml = `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>PRESENT</span>`;
+        } else if (r.status === "TEMPORARILY_MISSING") {
+          badgeHtml = `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>MISSING</span>`;
+        } else if (r.status === "LEFT") {
+          badgeHtml = `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20"><span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>LEFT</span>`;
+        } else {
+          badgeHtml = `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-slate-800 text-slate-400 border border-slate-700"><span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>ABSENT</span>`;
+        }
 
         const firstSeen = r.first_seen_at ? formatToLocalTime(r.first_seen_at) : "--";
         const lastSeen = r.last_seen_at ? formatToLocalTime(r.last_seen_at) : "--";
@@ -793,28 +912,24 @@
         const timeFormatted = `${mins}m ${secs}s`;
 
         return `
-          <tr class="hover:bg-slate-800/40 transition">
-            <td class="py-3 px-3.5">
-              <div class="font-semibold text-white">${r.student_name}</div>
-              <div class="text-[11px] text-slate-400 font-mono">${r.student_number}</div>
+          <tr class="hover:bg-slate-800/30 transition border-b border-slate-800/40">
+            <td class="py-2.5 px-3">
+              <div class="font-medium text-white text-xs">${r.student_name}</div>
+              <div class="text-[10px] text-slate-400 font-mono">${r.student_number}</div>
             </td>
-            <td class="py-3 px-3.5">
-              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${badgeClass}">
-                ${r.status}
-              </span>
-            </td>
-            <td class="py-3 px-3.5 font-mono text-slate-300">${firstSeen}</td>
-            <td class="py-3 px-3.5 font-mono text-slate-300">${lastSeen}</td>
-            <td class="py-3 px-3.5 font-mono text-slate-300">${timeFormatted}</td>
-            <td class="py-3 px-3.5 font-mono font-semibold ${r.percentage >= 80 ? 'text-emerald-400' : r.percentage >= 50 ? 'text-amber-400' : 'text-slate-400'}">
+            <td class="py-2.5 px-3">${badgeHtml}</td>
+            <td class="py-2.5 px-3 font-mono text-slate-300 text-[11px]">${firstSeen}</td>
+            <td class="py-2.5 px-3 font-mono text-slate-300 text-[11px]">${lastSeen}</td>
+            <td class="py-2.5 px-3 font-mono text-slate-300 text-[11px]">${timeFormatted}</td>
+            <td class="py-2.5 px-3 font-mono text-xs font-semibold ${r.percentage >= 80 ? 'text-emerald-400' : r.percentage >= 50 ? 'text-amber-400' : 'text-slate-400'}">
               ${r.percentage}%
             </td>
-            <td class="py-3 px-3.5 text-right">
+            <td class="py-2.5 px-3 text-right">
               <button
                 onclick="openCorrectionModal(${r.id}, '${r.student_name}', '${r.status}')"
-                class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-slate-300 hover:text-white transition"
+                class="px-2 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded text-slate-300 hover:text-white text-[11px] transition"
               >
-                Edit
+                Override
               </button>
             </td>
           </tr>
@@ -839,7 +954,7 @@
 
     document.getElementById("searchTable").addEventListener("input", renderTable);
 
-    // 7. Timer
+    // 7. Timer Lifecycle
     function startTimer(startDate) {
       stopTimer();
       timerInterval = setInterval(() => {
@@ -856,7 +971,7 @@
       document.getElementById("sessionTimer").innerText = "00:00:00";
     }
 
-    // 8. Manual Correction Modal
+    // 8. Manual Override Modal
     function openCorrectionModal(recordId, studentName, currentStatus) {
       activeRecordIdToEdit = recordId;
       document.getElementById("modalStudentName").innerText = studentName;
@@ -886,15 +1001,15 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ new_status: newStatus, reason: reason })
         });
-        if (!res.ok) throw new Error("Correction failed");
+        if (!res.ok) throw new Error("Failed to apply correction");
         closeCorrectionModal();
         loadSessionAttendance(activeSession.id);
       } catch (e) {
-        alert("Error saving correction: " + e.message);
+        alert("Error: " + e.message);
       }
     }
 
-    // Initialize check and camera detection on page load
+    // Initialize camera list and session check
     loadCameras();
     checkExistingActiveSession();
   </script>
