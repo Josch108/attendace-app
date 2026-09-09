@@ -14,7 +14,7 @@ class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{ROOT_DIR / 'attendance.db'}")
     
     # Local storage directory for student face images
-    STORAGE_PATH: Path = Path(os.getenv("STORAGE_PATH", str(ROOT_DIR / "data" / "students")))
+    STORAGE_PATH: Path = (ROOT_DIR / os.getenv("STORAGE_PATH", str(ROOT_DIR / "data" / "students"))).resolve()
     
     # Model and attendance policy parameters
     ABSENCE_TIMEOUT_SECONDS: int = int(os.getenv("ABSENCE_TIMEOUT_SECONDS", "45"))
