@@ -48,18 +48,18 @@ class CameraService:
 
             # Determine best display label
             if cid in self._browser_devices:
-                name = f"{self._browser_devices[cid]} (Índice {cid})"
+                name = f"{self._browser_devices[cid]} (Index {cid})"
                 cam_type = "external" if not is_first else "builtin"
             elif idx < len(profiler_names):
                 raw_name = profiler_names[idx]
-                cam_type = "builtin" if any(k in raw_name.lower() for k in ["facetime", "built-in", "interna", "integrada"]) else "external"
-                name = f"{raw_name} (Índice {cid})"
+                cam_type = "builtin" if any(k in raw_name.lower() for k in ["facetime", "built-in", "internal", "integrated"]) else "external"
+                name = f"{raw_name} (Index {cid})"
             else:
                 if is_first:
-                    name = f"Cámara Integrada / Principal (Índice {cid})"
+                    name = f"Built-in Camera (Index {cid})"
                     cam_type = "builtin"
                 else:
-                    name = f"Cámara Externa {idx} (Índice {cid})"
+                    name = f"External Camera {idx} (Index {cid})"
                     cam_type = "external"
 
             detected.append({
@@ -100,7 +100,7 @@ class CameraService:
             active = {
                 "id": self._active_camera_id,
                 "index": int(self._active_camera_id) if self._active_camera_id.isdigit() else None,
-                "name": f"Cámara {self._active_camera_id}",
+                "name": f"Camera {self._active_camera_id}",
                 "type": "external" if self._active_camera_id != "0" else "builtin",
                 "is_active": True
             }
