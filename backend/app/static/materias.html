@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Attendance - Materias</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+  <header class="bg-slate-900 border-b border-slate-800 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30 shadow-md">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-lg">🎓</div>
+      <div>
+        <h1 class="text-lg font-bold text-white tracking-tight">Smart Attendance</h1>
+        <p class="text-xs text-slate-400" id="teacherLine">—</p>
+      </div>
+    </div>
+    <button onclick="logout()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition">
+      Log Out
+    </button>
+  </header>
+
+  <main class="flex-1 p-6 max-w-6xl w-full mx-auto space-y-6">
+    <!-- ADD MATERIA -->
+    <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
+      <h2 class="font-bold text-white text-base mb-3 flex items-center gap-2"><span>➕</span> Add a Materia</h2>
+      <div id="formError" class="hidden bg-rose-950/40 border border-rose-800/40 text-rose-300 text-xs rounded-lg px-3 py-2 mb-3"></div>
+      <form id="materiaForm" class="flex flex-wrap gap-3 items-end">
+        <div class="flex-1 min-w-[180px]">
+          <label class="text-xs text-slate-400 block mb-1">Materia name</label>
+          <input type="text" id="materiaName" required placeholder="e.g. Data Structures - Group A" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div class="w-40">
+          <label class="text-xs text-slate-400 block mb-1">Required hours</label>
+          <input type="number" id="materiaHours" min="0" value="0" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-xl shadow-lg transition">
+          Save Materia
+        </button>
+      </form>
+    </section>
+
+    <!-- MATERIAS LIST -->
+    <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
+      <h2 class="font-bold text-white text-base mb-3 flex items-center gap-2"><span>📚</span> Your Materias</h2>
+      <div id="materiasEmpty" class="hidden text-slate-500 text-sm italic py-6 text-center">
+        No materias yet — add one above to get started.
+      </div>
+      <div id="materiasGrid" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+    </section>
+
+    <!-- STUDENTS LIST -->
+    <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-bold text-white text-base flex items-center gap-2"><span>🧑‍🎓</span> Students</h2>
+        <a href="/enroll" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition">
+          + Enroll Student
+        </a>
+      </div>
+      <div id="studentsEmpty" class="hidden text-slate-500 text-sm italic py-6 text-center">
+        No students enrolled yet.
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+          <thead>
+            <tr class="text-slate-500 text-[11px] uppercase tracking-wider border-b border-slate-800">
+              <th class="py-2 px-3">Name</th>
+              <th class="py-2 px-3">Student #</th>
+              <th class="py-2 px-3">Groups</th>
+              <th class="py-2 px-3">Face Samples</th>
+            </tr>
+          </thead>
+          <tbody id="studentsTbody" class="divide-y divide-slate-800/60"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- MANAGE STUDENTS MODAL -->
+  <div id="manageModal" class="hidden fixed inset-0 bg-black/60 z-40 flex items-center justify-center p-6">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-md shadow-2xl">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-white text-base">Students in <span id="manageMateriaName" class="text-blue-400"></span></h3>
+        <button onclick="closeManageStudents()" class="text-slate-500 hover:text-white text-xl leading-none">×</button>
+      </div>
+      <p class="text-xs text-slate-500 mb-3">Check the students who take this materia. Only enrolled students appear on the live dashboard when a session starts.</p>
+      <div id="manageList" class="max-h-80 overflow-y-auto space-y-1.5"></div>
+    </div>
+  </div>
+
+  <script>
+    let manageMateriaId = null;
+
+    // Gate: must be "logged in" (client-side check only — see note in chat)
+    const teacherRaw = sessionStorage.getItem("teacher");
+    if (!teacherRaw) {
+      window.location.href = "/login";
+    }
+    const teacher = teacherRaw ? JSON.parse(teacherRaw) : null;
+    if (teacher) {
+      document.getElementById("teacherLine").innerText =
+        teacher.institution ? `${teacher.name} · ${teacher.institution}` : teacher.name;
+    }
+
+    function logout() {
+      sessionStorage.removeItem("teacher");
+      window.location.href = "/login";
+    }
+
+    async function loadMaterias() {
+      try {
+        const res = await fetch("/api/materias");
+        const materias = await res.json();
+        const grid = document.getElementById("materiasGrid");
+        document.getElementById("materiasEmpty").classList.toggle("hidden", materias.length > 0);
+
+        grid.innerHTML = materias.map(m => `
+          <div class="bg-slate-950/60 border border-slate-800 hover:border-blue-600/50 rounded-xl p-4 transition group">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="font-bold text-white">${m.name}</h3>
+              <button onclick="deleteMateria(${m.id}, '${m.name.replace(/'/g, "\\'")}')" class="text-slate-500 hover:text-rose-400 text-xs">✕</button>
+            </div>
+            <div class="text-xs text-slate-400 space-y-1">
+              <div>👥 ${m.student_count} student${m.student_count === 1 ? '' : 's'}</div>
+              <div>⏱️ ${m.required_hours} required hours</div>
+              <div>📅 ${m.sessions_count} session${m.sessions_count === 1 ? '' : 's'} held</div>
+            </div>
+            <div class="mt-3 flex items-center gap-3">
+              <a href="/dashboard?group=${encodeURIComponent(m.name)}" class="text-xs font-semibold text-blue-400 hover:text-blue-300">Open → Start Session</a>
+              <button onclick="openManageStudents(${m.id}, '${m.name.replace(/'/g, "\\'")}')" class="text-xs font-semibold text-slate-300 hover:text-white">👥 Manage Students</button>
+            </div>
+          </div>
+        `).join("");
+      } catch (e) {
+        console.error("Error loading materias:", e);
+      }
+    }
+
+    async function deleteMateria(id, name) {
+      if (!confirm(`Delete materia "${name}"? This also removes its sessions and enrollments.`)) return;
+      try {
+        const res = await fetch(`/api/materias/${id}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("Delete failed");
+        loadMaterias();
+      } catch (e) {
+        alert("Error deleting materia: " + e.message);
+      }
+    }
+
+    async function openManageStudents(materiaId, materiaName) {
+      manageMateriaId = materiaId;
+      document.getElementById("manageMateriaName").innerText = materiaName;
+      document.getElementById("manageModal").classList.remove("hidden");
+      document.getElementById("manageList").innerHTML = '<p class="text-xs text-slate-500 italic py-4 text-center">Loading...</p>';
+
+      try {
+        const [allRes, enrolledRes] = await Promise.all([
+          fetch("/api/students"),
+          fetch(`/api/materias/${materiaId}/students`)
+        ]);
+        const allStudents = await allRes.json();
+        const enrolled = await enrolledRes.json();
+        const enrolledIds = new Set(enrolled.map(s => s.id));
+
+        const list = document.getElementById("manageList");
+        if (allStudents.length === 0) {
+          list.innerHTML = '<p class="text-xs text-slate-500 italic py-4 text-center">No students enrolled in the system yet. Use "Enroll Student" first.</p>';
+          return;
+        }
+
+        list.innerHTML = allStudents.map(s => `
+          <label class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-slate-800/60 cursor-pointer text-sm">
+            <input
+              type="checkbox"
+              ${enrolledIds.has(s.id) ? "checked" : ""}
+              onchange="toggleEnrollment(${s.id}, this.checked)"
+              class="w-4 h-4 accent-blue-600"
+            />
+            <span class="text-white">${s.name}</span>
+            <span class="text-slate-500 text-xs font-mono ml-auto">${s.student_number}</span>
+          </label>
+        `).join("");
+      } catch (e) {
+        document.getElementById("manageList").innerHTML = '<p class="text-xs text-rose-400 py-4 text-center">Error loading students.</p>';
+      }
+    }
+
+    function closeManageStudents() {
+      document.getElementById("manageModal").classList.add("hidden");
+      manageMateriaId = null;
+      loadMaterias(); // refresh student counts on the cards
+    }
+
+    async function toggleEnrollment(studentId, checked) {
+      if (!manageMateriaId) return;
+      try {
+        if (checked) {
+          const res = await fetch(`/api/materias/${manageMateriaId}/students`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ student_id: studentId })
+          });
+          if (!res.ok) throw new Error((await res.json()).detail || "Could not enroll student");
+        } else {
+          const res = await fetch(`/api/materias/${manageMateriaId}/students/${studentId}`, { method: "DELETE" });
+          if (!res.ok) throw new Error((await res.json()).detail || "Could not remove student");
+        }
+      } catch (e) {
+        alert("Error: " + e.message);
+      }
+    }
+
+    document.getElementById("materiaForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const errBox = document.getElementById("formError");
+      errBox.classList.add("hidden");
+
+      const name = document.getElementById("materiaName").value.trim();
+      const required_hours = parseInt(document.getElementById("materiaHours").value, 10) || 0;
+
+      try {
+        const res = await fetch("/api/materias", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, required_hours })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          errBox.innerText = data.detail || "Could not save materia.";
+          errBox.classList.remove("hidden");
+          return;
+        }
+        document.getElementById("materiaForm").reset();
+        document.getElementById("materiaHours").value = 0;
+        loadMaterias();
+      } catch (e) {
+        errBox.innerText = "Could not reach the server.";
+        errBox.classList.remove("hidden");
+      }
+    });
+
+    async function loadStudents() {
+      try {
+        const res = await fetch("/api/students");
+        const students = await res.json();
+        const tbody = document.getElementById("studentsTbody");
+        document.getElementById("studentsEmpty").classList.toggle("hidden", students.length > 0);
+
+        tbody.innerHTML = students.map(s => `
+          <tr>
+            <td class="py-2.5 px-3 font-semibold text-white">${s.name}</td>
+            <td class="py-2.5 px-3 font-mono text-slate-300">${s.student_number}</td>
+            <td class="py-2.5 px-3 text-slate-400">${s.groups.join(", ") || "—"}</td>
+            <td class="py-2.5 px-3 text-slate-400">${s.embeddings_count}</td>
+          </tr>
+        `).join("");
+      } catch (e) {
+        console.error("Error loading students:", e);
+      }
+    }
+
+    loadMaterias();
+    loadStudents();
+  </script>
+</body>
+</html>

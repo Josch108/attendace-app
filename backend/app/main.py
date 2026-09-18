@@ -4,7 +4,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 from app.config import settings
 from app.api import api_router
@@ -49,6 +49,30 @@ def serve_dashboard():
         return FileResponse(str(dashboard_html))
     return JSONResponse(status_code=404, content={"message": "Dashboard template not found."})
 
+@app.get("/login", tags=["Web Interface"])
+def serve_login():
+    """Serves the teacher sign-in / registration page."""
+    login_html = STATIC_DIR / "login.html"
+    if login_html.exists():
+        return FileResponse(str(login_html))
+    return JSONResponse(status_code=404, content={"message": "Login template not found."})
+
+@app.get("/materias", tags=["Web Interface"])
+def serve_materias():
+    """Serves the materias (subjects) management page — the home screen after login."""
+    materias_html = STATIC_DIR / "materias.html"
+    if materias_html.exists():
+        return FileResponse(str(materias_html))
+    return JSONResponse(status_code=404, content={"message": "Materias template not found."})
+
+@app.get("/reports", tags=["Web Interface"])
+def serve_reports_dashboard():
+    """Serves the attendance analytics dashboard (patterns, trends, and risk indicators)."""
+    reports_html = STATIC_DIR / "reports.html"
+    if reports_html.exists():
+        return FileResponse(str(reports_html))
+    return JSONResponse(status_code=404, content={"message": "Reports template not found."})
+
 @app.get("/enroll", tags=["Web Interface"])
 def serve_enrollment_station():
     """Serves the interactive student face capture and enrollment web station."""
@@ -64,9 +88,16 @@ def health_check():
 
 @app.get("/", tags=["Root"])
 def root():
+    """Landing page: sends everyone to sign in first, then Materias, then the live dashboard."""
+    return RedirectResponse(url="/login")
+
+@app.get("/info", tags=["Root"])
+def info():
     return {
         "project": settings.PROJECT_NAME,
         "docs_url": "/docs",
+        "login_url": "/login",
+        "materias_url": "/materias",
         "dashboard_url": "/dashboard",
         "enroll_station_url": "/enroll",
         "api_prefix": "/api"
