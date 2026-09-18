@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Attendance - Sign In</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-6">
+  <div class="w-full max-w-sm bg-slate-900/80 border border-slate-800 rounded-2xl p-7 shadow-xl">
+    <div class="text-center mb-6">
+      <div class="w-12 h-12 mx-auto rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-2xl mb-3">🎓</div>
+      <h1 class="text-xl font-bold text-white">Smart Attendance</h1>
+      <p class="text-xs text-slate-400 mt-1" id="subtitle">Sign in with your teacher account</p>
+    </div>
+
+    <div id="errorBox" class="hidden bg-rose-950/40 border border-rose-800/40 text-rose-300 text-xs rounded-lg px-3 py-2 mb-4"></div>
+
+    <form id="authForm" class="space-y-3.5">
+      <div id="nameField" class="hidden">
+        <label class="text-xs text-slate-400 block mb-1">Full name</label>
+        <input type="text" id="fieldName" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Dalila Ku" />
+      </div>
+      <div id="institutionField" class="hidden">
+        <label class="text-xs text-slate-400 block mb-1">Institution</label>
+        <input type="text" id="fieldInstitution" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Universidad Politécnica de Yucatán" />
+      </div>
+      <div>
+        <label class="text-xs text-slate-400 block mb-1">Email</label>
+        <input type="email" id="fieldEmail" required class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="teacher@school.edu" />
+      </div>
+      <div>
+        <label class="text-xs text-slate-400 block mb-1">Password</label>
+        <input type="password" id="fieldPassword" required class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••" />
+      </div>
+
+      <button type="submit" id="submitBtn" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-xl shadow-lg transition">
+        Sign In
+      </button>
+    </form>
+
+    <p class="text-center text-xs text-slate-500 mt-5">
+      <span id="toggleText">Don't have an account?</span>
+      <button onclick="toggleMode()" id="toggleBtn" class="text-blue-400 hover:text-blue-300 font-semibold ml-1">Create one</button>
+    </p>
+  </div>
+
+  <script>
+    let mode = "login"; // or "register"
+
+    function toggleMode() {
+      mode = mode === "login" ? "register" : "login";
+      const isRegister = mode === "register";
+      document.getElementById("nameField").classList.toggle("hidden", !isRegister);
+      document.getElementById("institutionField").classList.toggle("hidden", !isRegister);
+      document.getElementById("subtitle").innerText = isRegister
+        ? "Create your teacher account"
+        : "Sign in with your teacher account";
+      document.getElementById("submitBtn").innerText = isRegister ? "Create Account" : "Sign In";
+      document.getElementById("toggleText").innerText = isRegister ? "Already have an account?" : "Don't have an account?";
+      document.getElementById("toggleBtn").innerText = isRegister ? "Sign in" : "Create one";
+      hideError();
+    }
+
+    function showError(msg) {
+      const box = document.getElementById("errorBox");
+      box.innerText = msg;
+      box.classList.remove("hidden");
+    }
+    function hideError() {
+      document.getElementById("errorBox").classList.add("hidden");
+    }
+
+    document.getElementById("authForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideError();
+
+      const email = document.getElementById("fieldEmail").value.trim();
+      const password = document.getElementById("fieldPassword").value;
+
+      try {
+        let res, data;
+        if (mode === "login") {
+          res = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password })
+          });
+        } else {
+          const name = document.getElementById("fieldName").value.trim();
+          const institution = document.getElementById("fieldInstitution").value.trim();
+          if (!name) { showError("Please enter your full name."); return; }
+          res = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, institution, email, password })
+          });
+        }
+
+        data = await res.json();
+        if (!res.ok) {
+          showError(data.detail || "Something went wrong.");
+          return;
+        }
+
+        sessionStorage.setItem("teacher", JSON.stringify(data));
+        window.location.href = "/materias";
+      } catch (err) {
+        showError("Could not reach the server. Is the backend running?");
+      }
+    });
+
+    // If already logged in, skip straight to materias
+    if (sessionStorage.getItem("teacher")) {
+      window.location.href = "/materias";
+    }
+  </script>
+</body>
+</html>

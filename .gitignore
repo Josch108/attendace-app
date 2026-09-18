@@ -52,3 +52,4 @@ outputs/*
 # OS specific
 .DS_Store
 Thumbs.db
+attendance.db

@@ -15,7 +15,7 @@ class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{ROOT_DIR / 'attendance.db'}")
     
     # Local storage directory for student face images
-    STORAGE_PATH: Path = Path(os.getenv("STORAGE_PATH", str(ROOT_DIR / "data" / "students")))
+    STORAGE_PATH: Path = (ROOT_DIR / os.getenv("STORAGE_PATH", str(ROOT_DIR / "data" / "students"))).resolve()
 
     # Output directory for generated CSV reports and exports
     OUTPUTS_DIR: Path = Path(os.getenv("OUTPUTS_DIR", str(ROOT_DIR / "outputs")))

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Attendance - Analytics & Risk Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in { animation: fadeIn 0.25s ease-out; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+  <!-- TOP NAVIGATION BAR -->
+  <header class="bg-slate-900 border-b border-slate-800 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30 shadow-md">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-lg">
+        📊
+      </div>
+      <div>
+        <h1 class="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+          Smart Attendance <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-medium border border-indigo-500/30">Analytics & Risk</span>
+        </h1>
+        <p class="text-xs text-slate-400">Attendance Patterns & Early-Warning Indicators</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <select
+        id="selectGroupFilter"
+        class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      >
+        <option value="">All Groups</option>
+        <option value="Group A">Group A</option>
+        <option value="Group B">Group B</option>
+        <option value="Group C">Group C</option>
+      </select>
+
+      <button
+        id="btnExport"
+        onclick="exportExcel()"
+        class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5"
+      >
+        <span>⬇️</span> Export to Excel
+      </button>
+
+      <a
+        href="/dashboard"
+        class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5"
+      >
+        <span>🎥</span> Live Dashboard
+      </a>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
+
+    <!-- DISCLAIMER BANNER -->
+    <div class="bg-amber-950/30 border border-amber-800/40 rounded-xl px-4 py-2.5 text-xs text-amber-300 flex items-center gap-2">
+      <span>⚠️</span>
+      <span>Risk levels below are estimated <strong>only from attendance history</strong> (no grades are recorded in this system). Treat them as an early-warning signal to review, not a grade prediction.</span>
+    </div>
+
+    <div id="emptyState" class="hidden bg-slate-900/80 border border-slate-800 rounded-2xl p-10 text-center text-slate-400">
+      No ended class sessions yet for this filter. Finish at least one class session to see analytics here.
+    </div>
+
+    <div id="reportContent">
+      <!-- SUMMARY CARDS -->
+      <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4.5 shadow-sm">
+          <div class="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Sessions Analyzed</div>
+          <div class="text-3xl font-extrabold text-white" id="cardSessions">0</div>
+        </div>
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4.5 shadow-sm">
+          <div class="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Students Tracked</div>
+          <div class="text-3xl font-extrabold text-white" id="cardStudents">0</div>
+        </div>
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4.5 shadow-sm">
+          <div class="text-indigo-400 text-xs font-semibold uppercase tracking-wider mb-2">Overall Attendance</div>
+          <div class="text-3xl font-extrabold text-indigo-300" id="cardOverall">0%</div>
+        </div>
+        <div class="bg-slate-900/80 border border-rose-900/40 rounded-2xl p-4.5 shadow-sm">
+          <div class="text-rose-400 text-xs font-semibold uppercase tracking-wider mb-2">High Risk Students</div>
+          <div class="text-3xl font-extrabold text-rose-400" id="cardHighRisk">0</div>
+        </div>
+      </section>
+
+      <!-- CHARTS ROW -->
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
+          <h3 class="font-bold text-white text-base mb-1 flex items-center gap-2"><span>📈</span> Attendance Trend Over Time</h3>
+          <p class="text-xs text-slate-500 mb-3">Average attendance % per class session, in order.</p>
+          <canvas id="trendChart" height="220"></canvas>
+        </div>
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
+          <h3 class="font-bold text-white text-base mb-1 flex items-center gap-2"><span>📅</span> Attendance by Day of Week</h3>
+          <p class="text-xs text-slate-500 mb-3">Which weekdays tend to have lower attendance.</p>
+          <canvas id="weekdayChart" height="220"></canvas>
+        </div>
+      </section>
+
+      <!-- STUDENT RISK TABLE -->
+      <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
+          <h3 class="font-bold text-white text-base flex items-center gap-2"><span>🎯</span> Student Risk Summary</h3>
+          <input
+            type="text"
+            id="searchTable"
+            placeholder="Search student..."
+            class="px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 w-48"
+          />
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead>
+              <tr class="text-slate-500 text-[11px] uppercase tracking-wider border-b border-slate-800">
+                <th class="py-2.5 px-3.5">Student</th>
+                <th class="py-2.5 px-3.5">Sessions Attended</th>
+                <th class="py-2.5 px-3.5">Overall %</th>
+                <th class="py-2.5 px-3.5">Recent %</th>
+                <th class="py-2.5 px-3.5">Trend</th>
+                <th class="py-2.5 px-3.5">Risk Level</th>
+              </tr>
+            </thead>
+            <tbody id="studentsTbody" class="divide-y divide-slate-800/60"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    let trendChartInstance = null;
+    let weekdayChartInstance = null;
+    let currentReport = null;
+
+    function currentGroup() {
+      return document.getElementById("selectGroupFilter").value;
+    }
+
+    async function loadReport() {
+      const group = currentGroup();
+      const url = group ? `/api/reports/summary?group_name=${encodeURIComponent(group)}` : `/api/reports/summary`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Failed to load report");
+        currentReport = await res.json();
+        render();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function render() {
+      const report = currentReport;
+      const hasData = report && report.total_sessions > 0;
+
+      document.getElementById("emptyState").classList.toggle("hidden", hasData);
+      document.getElementById("reportContent").classList.toggle("hidden", !hasData);
+      if (!hasData) return;
+
+      document.getElementById("cardSessions").innerText = report.total_sessions;
+      document.getElementById("cardStudents").innerText = report.total_students;
+      document.getElementById("cardOverall").innerText = `${report.overall_average_percentage}%`;
+      document.getElementById("cardHighRisk").innerText = report.students.filter(s => s.risk_level === "high").length;
+
+      renderTrendChart(report.trend);
+      renderWeekdayChart(report.day_of_week);
+      renderStudentsTable(report.students);
+    }
+
+    function renderTrendChart(trend) {
+      const ctx = document.getElementById("trendChart").getContext("2d");
+      const labels = trend.map((t, i) => `#${i + 1} (${t.weekday.slice(0, 3)})`);
+      const data = trend.map(t => t.average_percentage);
+
+      if (trendChartInstance) trendChartInstance.destroy();
+      trendChartInstance = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: "Avg attendance %",
+            data,
+            borderColor: "#818cf8",
+            backgroundColor: "rgba(129,140,248,0.15)",
+            tension: 0.3,
+            fill: true,
+            pointRadius: 3,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { min: 0, max: 100, ticks: { color: "#94a3b8" }, grid: { color: "#1e293b" } },
+            x: { ticks: { color: "#94a3b8" }, grid: { color: "#1e293b" } }
+          }
+        }
+      });
+    }
+
+    function renderWeekdayChart(dayOfWeek) {
+      const ctx = document.getElementById("weekdayChart").getContext("2d");
+      const labels = dayOfWeek.map(d => d.weekday);
+      const data = dayOfWeek.map(d => d.average_percentage);
+
+      if (weekdayChartInstance) weekdayChartInstance.destroy();
+      weekdayChartInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{
+            label: "Avg attendance %",
+            data,
+            backgroundColor: data.map(v => v >= 80 ? "#34d399" : v >= 60 ? "#fbbf24" : "#fb7185"),
+            borderRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { min: 0, max: 100, ticks: { color: "#94a3b8" }, grid: { color: "#1e293b" } },
+            x: { ticks: { color: "#94a3b8" }, grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    function riskBadge(level) {
+      if (level === "high") return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-rose-950/80 text-rose-300 border-rose-700/60">High Risk</span>`;
+      if (level === "moderate") return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-amber-950/80 text-amber-300 border-amber-700/60">Moderate</span>`;
+      return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-emerald-950/80 text-emerald-300 border-emerald-700/60">Low Risk</span>`;
+    }
+
+    function trendArrow(direction) {
+      if (direction === "up") return `<span class="text-emerald-400">▲ Improving</span>`;
+      if (direction === "down") return `<span class="text-rose-400">▼ Declining</span>`;
+      return `<span class="text-slate-400">— Stable</span>`;
+    }
+
+    function renderStudentsTable(students) {
+      const q = document.getElementById("searchTable").value.toLowerCase().trim();
+      const tbody = document.getElementById("studentsTbody");
+      const filtered = students.filter(s =>
+        s.student_name.toLowerCase().includes(q) || s.student_number.toLowerCase().includes(q)
+      );
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-500 italic">No matching students found.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(s => `
+        <tr class="hover:bg-slate-800/40 transition">
+          <td class="py-3 px-3.5">
+            <div class="font-semibold text-white">${s.student_name}</div>
+            <div class="text-[11px] text-slate-400 font-mono">${s.student_number}</div>
+          </td>
+          <td class="py-3 px-3.5 font-mono text-slate-300">${s.sessions_present} / ${s.total_sessions}</td>
+          <td class="py-3 px-3.5 font-mono font-semibold ${s.overall_percentage >= 80 ? 'text-emerald-400' : s.overall_percentage >= 50 ? 'text-amber-400' : 'text-rose-400'}">${s.overall_percentage}%</td>
+          <td class="py-3 px-3.5 font-mono text-slate-300">${s.recent_percentage}%</td>
+          <td class="py-3 px-3.5 text-xs">${trendArrow(s.trend_direction)}</td>
+          <td class="py-3 px-3.5">${riskBadge(s.risk_level)}</td>
+        </tr>
+      `).join("");
+    }
+
+    function exportExcel() {
+      const group = currentGroup();
+      const url = group ? `/api/reports/export?group_name=${encodeURIComponent(group)}` : `/api/reports/export`;
+      window.location.href = url;
+    }
+
+    document.getElementById("selectGroupFilter").addEventListener("change", loadReport);
+    document.getElementById("searchTable").addEventListener("input", () => currentReport && renderStudentsTable(currentReport.students));
+
+    loadReport();
+  </script>
+</body>
+</html>

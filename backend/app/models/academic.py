@@ -28,6 +28,7 @@ class Group(Base):
     course_id: Mapped[int] = mapped_column(ForeignKey("courses.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     period: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g. "2026-2"
+    required_hours: Mapped[int] = mapped_column(default=0, nullable=False)  # hours students must complete
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc)
